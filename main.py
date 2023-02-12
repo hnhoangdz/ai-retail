@@ -85,7 +85,7 @@ class VideoRetailStore(object):
 
             # Person detection
             per_dets, fps_per = obj_detector(person_detector, frame)
-            for i, box in enumerate(per_dets[:,:4].numpy()):
+            for i, box in enumerate(per_dets[:,:4].cpu().numpy()):
                 cx, cy = bbox_to_center(box)
                 x1, y1, x2, y2 = box
                 cv2.circle(frame, (cx, cy), 2, (125, 0, 255), 2, cv2.LINE_AA)
@@ -127,15 +127,15 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_person", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/yolov7-tiny.pt")
-    parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
+    parser.add_argument("--weights_person", type=str, default="./weights/weight_detector.pt")
+    parser.add_argument("--weights_item", type=str, default="./weights/item_detector.pt")
     parser.add_argument("--video", type=str, default="", help="input video link")
 
     # Input and ouput
     parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/video_duy.mp4", help="input video")
-    parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
+    parser.add_argument("--save_path", type=str, default="./results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
-    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 
     # Camera
     parser.add_argument("--display", default=True, action="store_true")
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     
     # Detection
     person_detector = load_model(args.weights_person, device)
-    item_detector = load_model(args.weights_item, device)
+    # item_detector = load_model(args.weights_item, device)
         
     # Tracking
     tracker = BYTETracker(args)
