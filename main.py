@@ -84,8 +84,9 @@ class VideoRetailStore(object):
             height, width = frame.shape[:2]
 
             # Person detection
-            per_dets, fps_per = obj_detector(person_detector, frame)
-            for i, box in enumerate(per_dets[:,:4].cpu().numpy()):
+            all_object_dets, fps_per = obj_detector(detector, frame)
+            for i, box in enumerate(all_object_dets[:,:4].cpu().numpy()):
+                # visuyalize box and centre point object
                 cx, cy = bbox_to_center(box)
                 x1, y1, x2, y2 = box
                 cv2.circle(frame, (cx, cy), 2, (125, 0, 255), 2, cv2.LINE_AA)
@@ -127,7 +128,7 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_person", type=str, default="./weights/weight_detector.pt")
+    parser.add_argument("--weights_person", type=str, default="./weights/best_record.pt")
     parser.add_argument("--weights_item", type=str, default="./weights/item_detector.pt")
     parser.add_argument("--video", type=str, default="", help="input video link")
 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
     
     # Detection
-    person_detector = load_model(args.weights_person, device)
+    detector = load_model(args.weights_person, device)
     # item_detector = load_model(args.weights_item, device)
         
     # Tracking
