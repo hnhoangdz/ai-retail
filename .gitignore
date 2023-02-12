@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+video/
+dataset/
+results/
+*/weights
+*/run
+*.jpg
+*.pt
+*.mp4
+*.MOV
+*.mkv
+*.avi
