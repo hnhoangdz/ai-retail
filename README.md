@@ -4,7 +4,8 @@
 
 Demo tracking items and human behaviors in the store. We used Computer vision, Deep learning for project development process.
 
-[ ](https://www.youtube.com/watch?v=yeS8TJwBAFs)
+[![Watch the video](https://i.imgur.com/vKb2F1B.png)](https://www.youtube.com/watch?v=yeS8TJwBAFs)
+
 
 
 # Installation:
