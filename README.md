@@ -4,6 +4,9 @@
 
 Demo tracking items and human behaviors in the store. We used Computer vision, Deep learning for project development process.
 
+[ ](https://www.youtube.com/watch?v=yeS8TJwBAFs)
+
+
 # Installation:
 
 1. `git clone https://github.com/hnhoangdz/ai-retail.git`
