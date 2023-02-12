@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, './yolov7')
 
 import torch
-from helpers import load_model, bbox_to_center, kpts_to_box, coco_to_yolo
+from utils.helpers import load_model, bbox_to_center, kpts_to_box, coco_to_yolo
 import glob
 import scipy.io
 import os
