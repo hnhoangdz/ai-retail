@@ -1,11 +1,12 @@
 from typing import List, Dict
 class CLASSES:
     PERSON = {"id": 0, "label": "person"}
-    COFFEE = {"id": 0, "label": "person"}
-    CHILLI_SAUCE = 3
-    COCA = 4
-    FANTA = 5
-    HAND = 6
+    OREO = {"id": 1, "label": "oreo_cake"}
+    COFFEE = {"id": 2, "label": "coffee"}
+    CHILLI_SAUCE = {"id": 3, "label": "chinsu"}
+    COCA = {"id": 4, "label": "coca"}
+    FANTA = {"id": 5, "label": "fanta"}
+    HAND = {"id": 6, "label": "hand"}
 
 class Point:
     def __init__(self, x, y) -> None:
@@ -18,9 +19,10 @@ class Box:
         self.bot_right = bot_right
 
 class Object:
-    def __init__(self, id, id_object, box:Box, conf) -> None:
+    def __init__(self, id, id_object, name_object, box:Box, conf) -> None:
         self.id = id
         self.id_object = id_object
+        self.name_object = name_object
         self.box = box #top left bottom right
         self.conf = conf
     
@@ -47,13 +49,13 @@ class Object:
 
 
 class Item(Object):
-    def __init__(self, id, id_object, box: Box, conf) -> None:
-        super().__init__(id, id_object, box, conf)
+    def __init__(self, id, id_object, name_object, box: Box, conf) -> None:
+        super().__init__(id, id_object, name_object, box, conf)
 
 
 class Hand(Object):
-    def __init__(self, id, id_object, box: Box, conf, id_person) -> None:
-        super().__init__(id, id_object, box, conf)
+    def __init__(self, id, id_object, name_object, box: Box, conf, id_person) -> None:
+        super().__init__(id, id_object, name_object, box, conf)
         self.id_person = id_person
 
     def touch(self, item:Item, thres=0.5):
@@ -61,9 +63,10 @@ class Hand(Object):
         return True if iou_score >= thres else False
 
 
-class Human:
-    def __init__(self, id, hand:List[Hand]) -> None:
+class Human(Object):
+    def __init__(self, id, id_object, name_object, box: Box, conf, hands:List[Hand]) -> None:
+        super().__init__(id, id_object, name_object, box, conf)
         self.id = id
         self.id_object = CLASSES.PERSON
-        self.has_hand = []
+        self.hands = hands
 
