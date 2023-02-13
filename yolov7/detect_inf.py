@@ -57,8 +57,8 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleu
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, r, (dw, dh)
 
-def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3, device="cpu"):
-    
+def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
     detector.to(device)
     
     half = False
