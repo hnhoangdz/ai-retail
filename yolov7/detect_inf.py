@@ -57,9 +57,13 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleu
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, r, (dw, dh)
 
-def obj_detector(detector, image, conf_thresh=0.45, iou_thresh=0.3):
-    detector = detector.to(device)
-    half = True
+def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3, device="cpu"):
+    
+    detector.to(device)
+    
+    half = False
+    if device != "cpu":
+        half = True
     img = image.copy()
     
     img = letterbox(img, new_shape=(1024, 1024))[0]
@@ -79,7 +83,7 @@ def obj_detector(detector, image, conf_thresh=0.45, iou_thresh=0.3):
         pred = detector(img, augment=False)[0]  # list: bz * [ (#obj, 6)]
 
     # Apply NMS
-    pred = non_max_suppression(pred, conf_thresh, iou_thresh, agnostic=False)
+    pred = non_max_suppression(pred, conf_thresh, iou_thresh, classes, agnostic=False)
     t2 = time_synchronized()
     fps = 1/(t2-t1)
     # Get final results
