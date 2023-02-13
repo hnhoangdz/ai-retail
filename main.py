@@ -128,7 +128,7 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_person", type=str, default="./weights/best_record.pt")
+    parser.add_argument("--weights_person", type=str, default="./weights/best_record_v3.pt")
     parser.add_argument("--weights_item", type=str, default="./weights/item_detector.pt")
     parser.add_argument("--video", type=str, default="", help="input video link")
 
