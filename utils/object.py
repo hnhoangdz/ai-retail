@@ -1,4 +1,5 @@
 from typing import List, Dict
+
 class CLASSES:
     PERSON = {"id": 0, "label": "person"}
     OREO = {"id": 1, "label": "oreo_cake"}

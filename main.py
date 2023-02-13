@@ -19,6 +19,7 @@ import os
 import time
 
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
+from cfg import *
 
 class VideoRetailStore(object):
     def __init__(self, args):
@@ -81,22 +82,65 @@ class VideoRetailStore(object):
                 print("error when reading camera")
                 break
             
-            height, width = frame.shape[:2]
-
-            # Person detection
-            all_object_dets, fps_per = obj_detector(detector, frame)
-            for i, box in enumerate(all_object_dets[:,:4].cpu().numpy()):
-                # visuyalize box and centre point object
-                cx, cy = bbox_to_center(box)
-                x1, y1, x2, y2 = box
-                cv2.circle(frame, (cx, cy), 2, (125, 0, 255), 2, cv2.LINE_AA)
-                area = search_area(frame, cx, cy)
-                print(area)
-                color = (255, 0, 0)
-                if area == "shelf":
-                    color = (0, 0, 255)
-                cv2.putText(frame, area, (int(x1), int(y1-5)), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 1, cv2.LINE_AA)
-                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+            org_h, org_w = frame.shape[:2]
+            
+            # Draw shelf-area
+            draw_line(frame, 0.2, 0.43, 0.39, 0.2) # t
+            draw_line(frame, 0.39, 0.2, 0.44, 0.4) # r
+            draw_line(frame, 0.44, 0.4, 0.29, 0.64) # b
+            draw_line(frame, 0.2, 0.43, 0.29, 0.64) # l
+            
+            # Draw attend-area
+            draw_line(frame, 0.14, 0.5, 0.4, 0.17) # t
+            draw_line(frame, 0.4, 0.17, 0.73, 0.33) # r 
+            draw_line(frame, 0.58, 0.97, 0.73, 0.33) # b
+            draw_line(frame, 0.14, 0.5, 0.58, 0.97) # l
+            
+            # Object detection
+            obj_dets, _ = obj_detector(person_detector, frame)
+            obj_dets = obj_dets.detach().cpu().numpy()
+            per_dets = obj_dets[obj_dets[:, 5] == 0]
+            box = per_dets[0]
+            # x1, y1, x2, y2 = box
+            cx, cy = bbox_to_center(box[:4])
+            search_area(frame, 788, 552)
+            
+            # Objects tracking
+            online_targets = tracker.update(per_dets, frame.shape[:2], self.args.input_size)
+            input_h, input_w = self.args.input_size
+            scale = min(input_h / float(org_h), input_w / float(org_w))
+            online_tlwhs = []
+            online_ids = []
+            online_scores = []
+            
+            # check person is invalid or not
+            # it must be: w < h & area > 10
+            for t in online_targets:
+                tlwh = t.tlwh
+                tid = t.track_id
+                vertical = tlwh[2] / tlwh[3] > self.args.aspect_ratio_thresh
+                if tlwh[2] * tlwh[3] > self.args.min_box_area and not vertical:
+                    online_tlwhs.append(tlwh)
+                    online_ids.append(tid)
+                    online_scores.append(t.score)
+                
+            for idx, tlwh in enumerate(online_tlwhs):
+                tlwh = tlwh * scale
+                cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3]) ), (255, 0, 0), 2)
+                cv2.putText(frame, str(online_ids[idx]), (int(tlwh[0]), int(tlwh[1] - 7)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
+                # cv2.putText(frame,  "{:.2f}".format(online_scores[idx]), (int(tlwh[2])-20, int(tlwh[1])), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
+            
+            # for i, box in enumerate(obj_dets[:,:4].numpy()):
+            #     x1, y1, x2, y2 = box
+            #     # cx, cy = bbox_to_center(box)
+            #     # cv2.circle(frame, (cx, cy), 2, (125, 0, 255), 2, cv2.LINE_AA)
+            #     # area = search_area(frame, cx, cy)
+            #     # print(area)
+            #     # color = (255, 0, 0)
+            #     # if area == "shelf":
+            #     #     color = (0, 0, 255)
+            #     # cv2.putText(frame, area, (int(x1), int(y1-5)), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 1, cv2.LINE_AA)
+            #     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                 
             # Item detection
             # item_dets, fps_item = obj_detector(item_detector, frame)
@@ -104,7 +148,7 @@ class VideoRetailStore(object):
             #     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 
             # Body Keypoints
-            # body_kpts = get_keypoints(frame, per_dets)
+            # body_kpts = get_keypoints(frame, obj_dets)
             # if len(body_kpts) > 0:
             #     hand_kpts = get_hands_kpts(body_kpts)
             #     hand_box = get_hands_box(hand_kpts)
@@ -128,15 +172,15 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_person", type=str, default="./weights/best_record.pt")
-    parser.add_argument("--weights_item", type=str, default="./weights/item_detector.pt")
+    parser.add_argument("--weights_person", type=str, default="./yolov7/trained_models/best_record_v3.pt")
+    parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
     parser.add_argument("--video", type=str, default="", help="input video link")
 
     # Input and ouput
-    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/video_duy.mp4", help="input video")
-    parser.add_argument("--save_path", type=str, default="./results", help="output folder")
+    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
+    parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
-    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 
     # Camera
     parser.add_argument("--display", default=True, action="store_true")
@@ -161,8 +205,8 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
     
     # Detection
-    detector = load_model(args.weights_person, device)
-    # item_detector = load_model(args.weights_item, device)
+    person_detector = load_model(args.weights_person, device)
+    item_detector = load_model(args.weights_item, device)
         
     # Tracking
     tracker = BYTETracker(args)
