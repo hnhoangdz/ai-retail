@@ -25,7 +25,6 @@ class Box:
 class Object:
     
     def __init__(self, cls_id, conf, box:Box, id=None)-> None:
-        self.id = id # id tracking for human 
         self.cls_id = cls_id
         self.box = box # top left bottom right
         self.conf = conf
@@ -74,6 +73,5 @@ class Human(Object):
     def __init__(self, cls_id, conf, box: Box, id, hands:List[Hand]) -> None:
         super().__init__(cls_id, conf, box, id)
         self.id = id
-        self.id_object = CLASSES.PERSON
         self.hands = hands
 

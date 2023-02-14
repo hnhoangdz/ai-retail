@@ -22,6 +22,36 @@ from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
 from cfg import *
 from frame_process import Frame
 
+class Behavior:
+    # Identify behavior of one person during consecutive 10 frames
+    def __init__(self, humans, items) -> None:
+        self.humans = humans
+        self.items = items
+
+    def get_item(self) -> bool:
+        for human in self.humans:
+            human_box = human.box
+            midx, midy = human_box.center_point
+            # x1_h, y1_h = human_box.top_left.x, human_box.top_left.y
+            # x2_h, y2_h =  human_box.bot_right.x, human_box.bot_right.y
+            area = search_area(1920, 1080, midx, midy)
+            if area != "shelf":
+                return False
+            human_hands = human.hands
+    
+    def put_item_to_shelf(self) -> bool:
+        pass
+
+    def bring_item_to_pay(self) -> bool:
+        pass
+
+    def stolen(self) -> bool:
+        '''
+           :))
+        '''
+        pass
+
+
 class VideoRetailStore(object):
     def __init__(self, args):
         self.args = args
@@ -73,6 +103,7 @@ class VideoRetailStore(object):
             
     def run(self):
         ith = 0
+        total_frame_objs = []
         
         while True:
             
@@ -82,93 +113,41 @@ class VideoRetailStore(object):
                 print("error when reading camera")
                 break
             
-            org_h, org_w = frame.shape[:2]
+            org_h, org_w = self.im_height, self.im_width
+            print(org_h, org_w)
+            # Frame Processing
+            frame_process = Frame(ith, frame, detector, tracker, display_area=True)
+            frame_process.detect(args.conf_thresh, args.iou_thresh, device)
+            frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
             
-            frame_obj = Frame(ith, frame, detector, tracker, display_area=True)
-            frame_obj.detect(args.conf_thresh, args.iou_thresh, device)
-            frame_obj.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
-            print(len(frame_obj.frame_objs))
-            for box in frame_obj.frame_objs:
-                print(box.cls_id)
-            # Return Objects
-            # human_boxes, hand_boxes, item_boxes = frame_obj.human_boxes, frame_obj.hand_boxes, frame_obj.item_boxes
-
-            # if len(human_boxes) >= 1:
-            #     p_track_boxes = frame_obj.tracking(human_boxes, args.input_size, 
-            #                                        args.aspect_ratio_thresh, 
-            #                                        args.min_box_area) # [x1,y1,x2,y2,id]
-            #     for p_box in p_track_boxes:
-                    
+            # Get all objects apprearing in current frame
+            frame_objs = frame_process.frame_objs
             
-            # area = search_area(frame, 998, 225)
-            # print(area)
-            
-            # # Object detection
-            # obj_dets, _ = obj_detector(person_detector, frame)
-            # obj_dets = obj_dets.detach().cpu().numpy()
-            # per_dets = obj_dets[obj_dets[:, 5] == 0]
-            # box = per_dets[0]
-            # # x1, y1, x2, y2 = box
-            # cx, cy = bbox_to_center(box[:4])
-            # search_area(frame, 788, 552)
-            
-            # # Objects tracking
-            # online_targets = tracker.update(per_dets, frame.shape[:2], self.args.input_size)
-            # input_h, input_w = self.args.input_size
-            # scale = min(input_h / float(org_h), input_w / float(org_w))
-            # online_tlwhs = []
-            # online_ids = []
-            # online_scores = []
-            
-            # # check person is invalid or not
-            # # it must be: w < h & area > 10
-            # for t in online_targets:
-            #     tlwh = t.tlwh
-            #     tid = t.track_id
-            #     vertical = tlwh[2] / tlwh[3] > self.args.aspect_ratio_thresh
-            #     if tlwh[2] * tlwh[3] > self.args.min_box_area and not vertical:
-            #         online_tlwhs.append(tlwh)
-            #         online_ids.append(tid)
-            #         online_scores.append(t.score)
+            # for obj in frame_objs:
+            #     if obj.cls_id == 0:
+            #         human_box = obj.box
+            #         top,left = human_box.top_left.x, human_box.top_left.y
+            #         bottom, right =  human_box.bot_right.x, human_box.bot_right.y
+            #         print(top, left, bottom,right)
+            #         human_hands_box = obj.hands
                 
-            # for idx, tlwh in enumerate(online_tlwhs):
-            #     tlwh = tlwh * scale
-            #     cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3]) ), (255, 0, 0), 2)
-            #     cv2.putText(frame, str(online_ids[idx]), (int(tlwh[0]), int(tlwh[1] - 7)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
-                # cv2.putText(frame,  "{:.2f}".format(online_scores[idx]), (int(tlwh[2])-20, int(tlwh[1])), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
+            # Append all objects to list in current frame
+            total_frame_objs.append(frame_objs)
             
-            # for i, box in enumerate(obj_dets[:,:4].numpy()):
-            #     x1, y1, x2, y2 = box
-            #     # cx, cy = bbox_to_center(box)
-            #     # cv2.circle(frame, (cx, cy), 2, (125, 0, 255), 2, cv2.LINE_AA)
-            #     # area = search_area(frame, cx, cy)
-            #     # print(area)
-            #     # color = (255, 0, 0)
-            #     # if area == "shelf":
-            #     #     color = (0, 0, 255)
-            #     # cv2.putText(frame, area, (int(x1), int(y1-5)), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 1, cv2.LINE_AA)
-            #     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                
-            # Item detection
-            # item_dets, fps_item = obj_detector(item_detector, frame)
-            # for x1,y1,x2,y2 in item_dets[:,:4]:
-            #     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-                
-            # Body Keypoints
-            # body_kpts = get_keypoints(frame, obj_dets)
-            # if len(body_kpts) > 0:
-            #     hand_kpts = get_hands_kpts(body_kpts)
-            #     hand_box = get_hands_box(hand_kpts)
-            #     print(hand_box)
+            # 10 consecutive frames
+            if len(total_frame_objs) == 11:
+                total_frame_objs.pop(0)
             
-            cv2.imwrite("c.jpg", frame)
+            
+            # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
-            ith +=1 
+            ith +=1             
+            
             if self.args.display:
-                cv2.namedWindow("test", cv2.WINDOW_KEEPRATIO)
-                cv2.imshow("test", frame)
+                cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
+                cv2.imshow("", frame)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     cv2.destroyAllWindows()
                     break
