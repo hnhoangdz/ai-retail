@@ -19,7 +19,50 @@ import os
 import time
 
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
-from cfg import *
+# from cfg import *
+from utils.object import Object, Human, Hand, Item
+from utils.frame import Frame
+
+class Behavior:
+    def __init__(self, frame:Frame) -> None:
+        self.frame = frame
+        self.shelve_area = self.frame.cap_shelve_area()
+        self.human_in_shelve_area = self.frame.cap_human_in_shelve_area()
+        self.common_area = self.frame.cap_common_area()
+        self.pay_area = self.frame.cap_pay_area()
+
+
+    def get_item(self) -> bool:
+        pass
+    
+    def put_item(self) -> bool:
+        pass
+
+    def bring_item_to_pay(self) -> bool:
+        pass
+
+    def stolen(self) -> bool:
+        '''
+           :))
+        '''
+        pass
+
+
+class Predictor:
+    def __init__(self) -> None:
+        pass
+
+    def detect(self):
+        pass
+
+    def track(self):
+        pass
+
+    def predict(self):
+        self.detect()
+        self.track()
+        return
+
 
 class VideoRetailStore(object):
     def __init__(self, args):
@@ -178,7 +221,7 @@ def get_parser():
 
     # Input and ouput
     parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
-    parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
+    parser.add_argument("--save_path", type=str, default="./results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 

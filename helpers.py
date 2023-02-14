@@ -31,7 +31,7 @@ def draw_line(image, xf1, yf1, xf2, yf2, color=(0, 255, 0)):
     # Gets intercept
     slope = (yf2-yf1)/(xf2-xf1)
     b = yf1 - slope*xf1
-    print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
+    # print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
 
     cv2.line(image, start_point, end_point, color, 4)
     return start_point, end_point
@@ -48,8 +48,7 @@ def draw_box(image, xf1, yf1, w_box, h_box):
     return x1, y1, x2, y2
 
 def load_model(weight_path, device):
-    model = torch.load(weight_path, map_location=device)[
-        'model'].float().eval()
+    model = torch.load(weight_path, map_location=device)['model'].float().eval()
     if torch.cuda.is_available():
         model.half().to(device)
     return model
@@ -150,7 +149,6 @@ def which_area(image, midx, midy):
             area = "A1"
         else:
             area = "Entrance"
-
     return area
 
 def writes_area_text(image, text, xf1, yf1):
@@ -170,9 +168,3 @@ def writes_area_text(image, text, xf1, yf1):
     # Draws foreground text
     cv2.putText(image, text,
                 start_point, font, fontScale, color, thickness)
-
-def bbox_to_center(box):
-    x1, y1, x2, y2 = box
-    w = x2 - x1
-    h = y2 - y1
-    return int(x1 + w/2), int(y1 + h/2)
