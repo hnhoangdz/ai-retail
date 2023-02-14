@@ -17,17 +17,6 @@ ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative     
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-def load_detect_model(weight_path):
-    model = torch.load(weight_path, map_location=device)['model']
-    model.float().eval()
-    
-    if torch.cuda.is_available():
-        model.half().to(device)
-    
-    return model
                                                                                
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleup=True, stride=32):
 
@@ -62,7 +51,7 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     detector.to(device)
     
     half = False
-    if device != "cpu":
+    if str(device) != "cpu":
         half = True
     img = image.copy()
     

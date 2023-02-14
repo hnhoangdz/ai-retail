@@ -18,16 +18,24 @@ class Box:
     def __init__(self, top_left:Point, bot_right:Point) -> None:
         self.top_left = top_left
         self.bot_right = bot_right
+    
+    def center_point(self):
+        return (self.top_left.x + self.bot_right.x)/2, (self.top_left.y + self.bot_right.y)/2
 
 class Object:
-    def __init__(self, id, id_object, name_object, box:Box, conf) -> None:
-        self.id = id
-        self.id_object = id_object
-        self.name_object = name_object
-        self.box = box #top left bottom right
-        self.conf = conf
     
-    def overlap_with(self, object:Object, thres=0.5):
+    def __init__(self, cls_id, conf, box:Box, id=None)-> None:
+        self.cls_id = cls_id
+        self.box = box # top left bottom right
+        self.conf = conf
+        '''
+            id: id_tracking
+            cls_id: class_id fit CLASS object above
+            conf: confidence object detection
+            box: Box
+        '''     
+    
+    def overlap_with(self, object, thres=0.5) -> float:
         # Compute S area 2 boxes
         S_self = (self.box.bot_right.x - self.box.top_left.x) * (self.box.bot_right.y - self.box.top_left.y)
         S_object = (object.box.bot_right.x - object.box.top_left.x)*(object.box.bot_right.y - object.box.top_left.y)
@@ -48,26 +56,22 @@ class Object:
         Iou = intersection_area/union_area
         return Iou
 
-
 class Item(Object):
-    def __init__(self, id, id_object, name_object, box: Box, conf) -> None:
-        super().__init__(id, id_object, name_object, box, conf)
-
+    def __init__(self, cls_id, box: Box, conf) -> None:
+        super().__init__(cls_id, box, conf)
 
 class Hand(Object):
-    def __init__(self, id, id_object, name_object, box: Box, conf, id_person) -> None:
-        super().__init__(id, id_object, name_object, box, conf)
+    def __init__(self, cls_id, box: Box, conf, id_person) -> None:
+        super().__init__(cls_id, box, conf)
         self.id_person = id_person
 
     def touch(self, item:Item, thres=0.5):
         iou_score = self.overlap_with(item)
         return True if iou_score >= thres else False
 
-
 class Human(Object):
-    def __init__(self, id, id_object, name_object, box: Box, conf, hands:List[Hand]) -> None:
-        super().__init__(id, id_object, name_object, box, conf)
+    def __init__(self, cls_id, conf, box: Box, id, hands:List[Hand]) -> None:
+        super().__init__(cls_id, conf, box, id)
         self.id = id
-        self.id_object = CLASSES.PERSON
         self.hands = hands
 
