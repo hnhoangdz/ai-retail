@@ -159,7 +159,7 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_path", type=str, default="./yolov7/trained_models/best_record_v3.pt")
+    parser.add_argument("--weights_path", type=str, default="./weights/best_record_v3.pt")
     # parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
     parser.add_argument("--conf_thresh", type=float, default=0.45, help="confidence threshold object detection")
     parser.add_argument("--iou_thresh", type=float, default=0.3, help="iou threshold object detection")
@@ -167,7 +167,7 @@ def get_parser():
 
     # Input and ouput
     parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
-    parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
+    parser.add_argument("--save_path", type=str, default="./results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 
