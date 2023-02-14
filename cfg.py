@@ -11,5 +11,14 @@ attend_area = [
     [0.73, 0.33], # br
     [0.58, 0.97], # bl
 ]
+
 classes = ["person", "oreo", "coffe", "tuong_ot", "coca", "fanta", "hand"]
+area_colors = {
+    "outside": (0,0,255),
+    "shelf": (0,255,0),
+    "attend": (255,0,0),
+    "payment": (125,255,0),
+}
+COUNTER = 0
 CONSECUTIVE_FRAME = 5
+    

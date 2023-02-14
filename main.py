@@ -20,12 +20,11 @@ import time
 
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
 from cfg import *
+from frame_process import Frame
 
 class VideoRetailStore(object):
     def __init__(self, args):
         self.args = args
-        self.curr_det_bboxes = []
-        self.prev_tar_bboxes = []
         self.device = select_device(args.device) 
         self.half = self.device.type != 'cpu'    
         if args.cam != -1:
@@ -76,6 +75,7 @@ class VideoRetailStore(object):
         ith = 0
         
         while True:
+            
             start_time = time.time()
             ret, frame = self.video.read()
             if not ret:
@@ -84,50 +84,57 @@ class VideoRetailStore(object):
             
             org_h, org_w = frame.shape[:2]
             
-            # Draw shelf-area
-            draw_line(frame, 0.2, 0.43, 0.39, 0.2) # t
-            draw_line(frame, 0.39, 0.2, 0.44, 0.4) # r
-            draw_line(frame, 0.44, 0.4, 0.29, 0.64) # b
-            draw_line(frame, 0.2, 0.43, 0.29, 0.64) # l
+            frame_obj = Frame(ith, frame, detector, tracker, display_area=True)
+            frame_obj.detect(args.conf_thresh, args.iou_thresh, device)
+            frame_obj.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
+            print(len(frame_obj.frame_objs))
+            for box in frame_obj.frame_objs:
+                print(box.cls_id)
+            # Return Objects
+            # human_boxes, hand_boxes, item_boxes = frame_obj.human_boxes, frame_obj.hand_boxes, frame_obj.item_boxes
+
+            # if len(human_boxes) >= 1:
+            #     p_track_boxes = frame_obj.tracking(human_boxes, args.input_size, 
+            #                                        args.aspect_ratio_thresh, 
+            #                                        args.min_box_area) # [x1,y1,x2,y2,id]
+            #     for p_box in p_track_boxes:
+                    
             
-            # Draw attend-area
-            draw_line(frame, 0.14, 0.5, 0.4, 0.17) # t
-            draw_line(frame, 0.4, 0.17, 0.73, 0.33) # r 
-            draw_line(frame, 0.58, 0.97, 0.73, 0.33) # b
-            draw_line(frame, 0.14, 0.5, 0.58, 0.97) # l
+            # area = search_area(frame, 998, 225)
+            # print(area)
             
-            # Object detection
-            obj_dets, _ = obj_detector(person_detector, frame)
-            obj_dets = obj_dets.detach().cpu().numpy()
-            per_dets = obj_dets[obj_dets[:, 5] == 0]
-            box = per_dets[0]
-            # x1, y1, x2, y2 = box
-            cx, cy = bbox_to_center(box[:4])
-            search_area(frame, 788, 552)
+            # # Object detection
+            # obj_dets, _ = obj_detector(person_detector, frame)
+            # obj_dets = obj_dets.detach().cpu().numpy()
+            # per_dets = obj_dets[obj_dets[:, 5] == 0]
+            # box = per_dets[0]
+            # # x1, y1, x2, y2 = box
+            # cx, cy = bbox_to_center(box[:4])
+            # search_area(frame, 788, 552)
             
-            # Objects tracking
-            online_targets = tracker.update(per_dets, frame.shape[:2], self.args.input_size)
-            input_h, input_w = self.args.input_size
-            scale = min(input_h / float(org_h), input_w / float(org_w))
-            online_tlwhs = []
-            online_ids = []
-            online_scores = []
+            # # Objects tracking
+            # online_targets = tracker.update(per_dets, frame.shape[:2], self.args.input_size)
+            # input_h, input_w = self.args.input_size
+            # scale = min(input_h / float(org_h), input_w / float(org_w))
+            # online_tlwhs = []
+            # online_ids = []
+            # online_scores = []
             
-            # check person is invalid or not
-            # it must be: w < h & area > 10
-            for t in online_targets:
-                tlwh = t.tlwh
-                tid = t.track_id
-                vertical = tlwh[2] / tlwh[3] > self.args.aspect_ratio_thresh
-                if tlwh[2] * tlwh[3] > self.args.min_box_area and not vertical:
-                    online_tlwhs.append(tlwh)
-                    online_ids.append(tid)
-                    online_scores.append(t.score)
+            # # check person is invalid or not
+            # # it must be: w < h & area > 10
+            # for t in online_targets:
+            #     tlwh = t.tlwh
+            #     tid = t.track_id
+            #     vertical = tlwh[2] / tlwh[3] > self.args.aspect_ratio_thresh
+            #     if tlwh[2] * tlwh[3] > self.args.min_box_area and not vertical:
+            #         online_tlwhs.append(tlwh)
+            #         online_ids.append(tid)
+            #         online_scores.append(t.score)
                 
-            for idx, tlwh in enumerate(online_tlwhs):
-                tlwh = tlwh * scale
-                cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3]) ), (255, 0, 0), 2)
-                cv2.putText(frame, str(online_ids[idx]), (int(tlwh[0]), int(tlwh[1] - 7)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
+            # for idx, tlwh in enumerate(online_tlwhs):
+            #     tlwh = tlwh * scale
+            #     cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3]) ), (255, 0, 0), 2)
+            #     cv2.putText(frame, str(online_ids[idx]), (int(tlwh[0]), int(tlwh[1] - 7)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
                 # cv2.putText(frame,  "{:.2f}".format(online_scores[idx]), (int(tlwh[2])-20, int(tlwh[1])), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
             
             # for i, box in enumerate(obj_dets[:,:4].numpy()):
@@ -158,6 +165,7 @@ class VideoRetailStore(object):
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
+            ith +=1 
             if self.args.display:
                 cv2.namedWindow("test", cv2.WINDOW_KEEPRATIO)
                 cv2.imshow("test", frame)
@@ -172,8 +180,10 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_person", type=str, default="./yolov7/trained_models/best_record_v3.pt")
-    parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
+    parser.add_argument("--weights_path", type=str, default="./yolov7/trained_models/best_record_v3.pt")
+    # parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
+    parser.add_argument("--conf_thresh", type=float, default=0.45, help="confidence threshold object detection")
+    parser.add_argument("--iou_thresh", type=float, default=0.3, help="iou threshold object detection")
     parser.add_argument("--video", type=str, default="", help="input video link")
 
     # Input and ouput
@@ -202,11 +212,12 @@ def get_parser():
 
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(device)
     args = get_parser().parse_args()
     
     # Detection
-    person_detector = load_model(args.weights_person, device)
-    item_detector = load_model(args.weights_item, device)
+    detector = load_model(args.weights_path, device)
+    # item_detector = load_model(args.weights_item, device)
         
     # Tracking
     tracker = BYTETracker(args)

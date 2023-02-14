@@ -18,11 +18,14 @@ class Box:
     def __init__(self, top_left:Point, bot_right:Point) -> None:
         self.top_left = top_left
         self.bot_right = bot_right
+    
+    def center_point(self):
+        return (self.top_left.x + self.bot_right.x)/2, (self.top_left.y + self.bot_right.y)/2
 
 class Object:
     
-    def __init__(self, cls_id, conf, box:Box, id=None) -> None:
-        self.id = id # id tracking for human
+    def __init__(self, cls_id, conf, box:Box, id=None)-> None:
+        self.id = id # id tracking for human 
         self.cls_id = cls_id
         self.box = box # top left bottom right
         self.conf = conf
@@ -33,7 +36,7 @@ class Object:
             box: Box
         '''     
     
-    def overlap_with(self, object, thres=0.5):
+    def overlap_with(self, object, thres=0.5) -> float:
         # Compute S area 2 boxes
         S_self = (self.box.bot_right.x - self.box.top_left.x) * (self.box.bot_right.y - self.box.top_left.y)
         S_object = (object.box.bot_right.x - object.box.top_left.x)*(object.box.bot_right.y - object.box.top_left.y)

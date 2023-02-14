@@ -4,11 +4,13 @@ video/
 images/
 dataset/
 results/
+*/trained_models
 */weights
 */run
-*.jpg
+*.jpii
 *.pt
 *.mp4
 *.MOV
 *.mkv
 *.avi
+*.log

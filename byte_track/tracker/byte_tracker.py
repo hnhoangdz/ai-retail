@@ -160,7 +160,7 @@ class BYTETracker(object):
 
     def update(self, output_results, img_info, img_size):
         
-        print("frame ID: ", self.frame_id)
+        
         
         self.frame_id += 1
         activated_starcks = []
@@ -209,7 +209,7 @@ class BYTETracker(object):
                 unconfirmed.append(track)
             else:
                 tracked_stracks.append(track)
-        print(unconfirmed, tracked_stracks)
+        
         
         ''' Step 2: First association, with high score detection boxes'''
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
@@ -284,7 +284,7 @@ class BYTETracker(object):
                 track.mark_removed()
                 removed_stracks.append(track)
 
-        # print('Ramained match {} s'.format(t4-t3))
+        # 
 
         self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
         self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_starcks)
@@ -296,8 +296,8 @@ class BYTETracker(object):
         self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
         # get scores of lost tracks
         output_stracks = [track for track in self.tracked_stracks if track.is_activated]
-        print(output_stracks)
-        print("=============================")
+        
+        
         return output_stracks
 
 
@@ -313,8 +313,8 @@ def joint_stracks(tlista, tlistb):
         if not exists.get(tid, 0):
             exists[tid] = 1
             res.append(t)
-    # print('exists : ', exists)
-    # print("res : ", res)
+    # 
+    # 
     return res
 
 

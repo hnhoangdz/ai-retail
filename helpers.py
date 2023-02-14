@@ -21,20 +21,18 @@ def kpts_to_box(points):
     xmax,ymax = np.max(points, 0)
     return [xmin, ymin, xmax, ymax]
 
-def draw_line(image, xf1, yf1, xf2, yf2, color=(0, 255, 0)):
+def draw_line(image, xf1, yf1, xf2, yf2, color=(0, 0, 125)):
     w = image.shape[1]
     h = image.shape[0]
 
     start_point = (int(w*xf1), int(h*yf1))
     end_point = (int(w*xf2), int(h*yf2))
 
-    # Gets intercept
     slope = (yf2-yf1)/(xf2-xf1)
     b = yf1 - slope*xf1
-    print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
+    # print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
 
     cv2.line(image, start_point, end_point, color, 4)
-    return start_point, end_point
 
 def draw_box(image, xf1, yf1, w_box, h_box):
     w = image.shape[1]
@@ -48,8 +46,7 @@ def draw_box(image, xf1, yf1, w_box, h_box):
     return x1, y1, x2, y2
 
 def load_model(weight_path, device):
-    model = torch.load(weight_path, map_location=device)[
-        'model'].float().eval()
+    model = torch.load(weight_path, map_location=device)['model'].float().eval()
     if torch.cuda.is_available():
         model.half().to(device)
     return model
@@ -60,98 +57,42 @@ def search_area(image, midx, midy):
     h = image.shape[0]
     xf = midx/w
     yf = midy/h
-    x1, x2 = 0.136, 0.75 
     
-    y1 = 0.0*xf + 0.0
-    y2 = -6.2*xf + 4.65
-    y3 = -0.337*xf + 0.546
-    y4 = 25.0*xf + -3.4
+    x1s, x2s, x3s, x4s = 0.2, 0.29, 0.39, 0.44
+    x1aa, x2aa, x3aa, x4aa = 0.14, 0.4, 0.58, 0.73 
     
-    # print(int(y1*h))
-    # print(int(y2*h))
-    # print(int(y3*h))
-    # print(int(y4*h))
+    yf1s = -1.211*xf + 0.672
+    yf2s = 4.0*xf + -1.36
+    yf3s = -1.6*xf + 1.104
+    yf4s = 2.333*xf + -0.037
     
-    # cv2.putText(image, "y1", (int(midx), int(y1*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    # cv2.putText(image, "y2", (int(midx), int(y2*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    # cv2.putText(image, "y3", (int(midx), int(y3*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    # cv2.putText(image, "y4", (int(midx), int(y4*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
+    yf1aa = -1.269*xf + 0.678
+    yf2aa = 0.485*xf + -0.024
+    yf3aa = -4.267*xf + 3.445
+    yf4aa = 1.068*xf + 0.35
     
-    if x1 <= xf <= x2:
-        if y1 <= yf <= y3:
-            return "shelf"
-    return "out-shelf"
-
-def which_area(image, midx, midy):
-
-    w = image.shape[1]
-    h = image.shape[0]
-    xf = midx/w
-    yf = midy/h
-    print("xf = ", xf)
-    # x sections
-    x1, x2, x3, x4, x5, x6 = 0.10, 0.30, 0.35, 0.55, 0.65, 0.85
-    # y=mx+b equations that separate each section
-    y1 = 0.0*xf + 0.2  # Top-left line
-    y2 = -0.444*xf + 0.294  # Top-middle line
-    y3 = 2.75*xf + -0.025  # Left line
-    y4 = -1.0*xf + 1.1  # Bottom line
-    y5 = 1.0*xf + -0.2  # Middle Line
+    cv2.circle(image, (int(midx), int(midy)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    cv2.circle(image, (int(midx), int(yf1s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf2s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf3s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf4s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf1aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf2aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf3aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf4aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
     
-    print(int(y1*h))
-    print(int(y2*h))
-    print(int(y3*h))
-    print(int(y4*h))
-    print(int(y5*h))
-    
-    cv2.putText(image, "y1", (int(midx), int(y1*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    cv2.putText(image, "y2", (int(midx), int(y2*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    cv2.putText(image, "y3", (int(midx), int(y3*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    cv2.putText(image, "y4", (int(midx), int(y4*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    cv2.putText(image, "y5", (int(midx), int(y5*h)), cv2.FONT_HERSHEY_SIMPLEX, 2, (120,0,255), 2, cv2.LINE_AA)
-    
-    if xf <= x1:
-        if yf <= y1:  # Top-left line
-            area = "A2"
-        else:
-            area = "Register"
-    elif xf > x1 and xf <= x2:
-        if yf <= y2:  # Top-middle line
-            area = "A2"
-        elif yf <= y3:  # Left line
-            area = "A3"
-        else:
-            area = "Register"
-    elif xf > x2 and xf <= x3:
-        if yf <= y2:  # Top-middle line
-            area = "A2"
-        elif yf <= y4:  # Bottom line
-            area = "A3"
-        else:
-            area = "Entrance"
-    elif xf > x3 and xf <= x4:
-        if yf <= y2:  # Top-middle line
-            area = "A2"
-        elif yf <= y5:  # Middle Line
-            area = "A1"
-        elif yf <= y4:  # Bottom line
-            area = "A3"
-        else:
-            area = "Entrance"
-    elif xf > x4 and xf <= x5:
-        if yf <= y5:  # Middle Line
-            area = "A1"
-        elif yf <= y4:  # Bottom line
-            area = "A3"
-        else:
-            area = "Entrance"
-    elif xf > x5 and xf <= x6:
-        if yf <= y4:  # Bottom line
-            area = "A1"
-        else:
-            area = "Entrance"
-
-    return area
+    if x1aa <= xf <= x3aa:
+        if x1s <= xf <= x3s:
+            if yf < yf1s:
+                return "outside"
+            elif yf2s <= yf <= yf4s:
+                return "shelf"
+        if yf2aa <= yf <= yf4aa:
+            return "attend"
+    elif xf > x3aa:
+        if yf > yf3aa:
+            return "payment"
+    return "outside"
 
 def writes_area_text(image, text, xf1, yf1):
     w = image.shape[1]
@@ -176,3 +117,5 @@ def bbox_to_center(box):
     w = x2 - x1
     h = y2 - y1
     return int(x1 + w/2), int(y1 + h/2)
+
+# def 
