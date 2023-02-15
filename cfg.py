@@ -21,4 +21,22 @@ area_colors = {
 }
 COUNTER = 0
 CONSECUTIVE_FRAME = 5
+
+class COLOR:
+    red = (255,0,0)
+    blue = (0,0,255)
+    green = (0,255,0)
+    yellow = (255,255,0)
+    magenta = (255,0,255)
+
+classes = {
+    0:"person",
+    1:"oreo",
+    2:"coffe",
+    3:"tuong_ot",
+    4:"coca",
+    5:"fanta",
+    6:"hand",
+}
+
     
