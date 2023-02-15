@@ -24,20 +24,37 @@ from frame_process import Frame
 
 class Behavior:
     # Identify behavior of one person during consecutive 10 frames
-    def __init__(self, humans, items) -> None:
+    def __init__(self, humans, items, current_frame) -> None:
         self.humans = humans
         self.items = items
-
+        self.current_frame = current_frame
+        
     def get_item(self) -> bool:
+        
+        if len(self.humans) < 1: return False
+        
+        area = ""
+        is_hand_picking = False
+        
         for human in self.humans:
+            
+            print(human.__class__.__name__)
             human_box = human.box
-            midx, midy = human_box.center_point
-            # x1_h, y1_h = human_box.top_left.x, human_box.top_left.y
-            # x2_h, y2_h =  human_box.bot_right.x, human_box.bot_right.y
-            area = search_area(1920, 1080, midx, midy)
+            midx, midy = human_box.center_point()
+            area = search_area(self.current_frame, midx, midy)
+            print(area)
             if area != "shelf":
                 return False
+            
             human_hands = human.hands
+            
+            for hand in human_hands:
+                print(hand.__class__.__name__)
+                for item in self.items:
+                    print(item.__class__.__name__)
+                    is_hand_picking = hand.touch(item)
+                    
+        return True if (area == "shelf" and is_hand_picking) else False
     
     def put_item_to_shelf(self) -> bool:
         pass
@@ -102,13 +119,17 @@ class VideoRetailStore(object):
             self.video = cv2.VideoCapture()
             
     def run(self):
+        
         ith = 0
-        total_frame_objs = []
+        
+        total_frame_humans = []
+        total_frame_items = []
         
         while True:
             
             start_time = time.time()
             ret, frame = self.video.read()
+            frame_copy = frame.copy()
             if not ret:
                 print("error when reading camera")
                 break
@@ -132,13 +153,19 @@ class VideoRetailStore(object):
             #         human_hands_box = obj.hands
                 
             # Append all objects to list in current frame
-            total_frame_objs.append(frame_objs)
+            total_frame_humans.append(frame_objs["humans"])
+            total_frame_items.append(frame_objs["items"])
             
             # 10 consecutive frames
-            if len(total_frame_objs) == 11:
-                total_frame_objs.pop(0)
+            if len(total_frame_humans) == 11:
+                total_frame_humans.pop(0)
+                total_frame_items.pop(0)
             
-            
+            if ith >= 10:
+                for frame_humans in total_frame_humans:
+                    behavior = Behavior(frame_humans, total_frame_items, frame_copy)
+                    print(behavior.get_item())
+                    
             # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)

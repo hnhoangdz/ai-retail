@@ -21,7 +21,9 @@ class Frame(object):
         self.detector = detector
         self.tracker = tracker
         self.org_h, self.org_w = self.frame.shape[:2]
-        self.frame_objs = {"humans": [], "items": []}
+        self.frame_objs = {"humans": [], 
+                           "items": []
+                           }
         
         if display_area:
             self.__draw_area()
@@ -64,11 +66,21 @@ class Frame(object):
             if self.classes_id[i] != 0 and self.classes_id[i] != 6:
                 i_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
                 i_obj = Item(self.classes_id[i], box[4], i_box)
-                self.frame_objs["humans"].append(i_obj)
+                self.frame_objs["items"].append(i_obj)
                 
     def tracking(self, input_size, aspect_ratio_thresh, min_box_area, visualize=True):
         
         if len(self.human_boxes) > 1:
+            
+            # confirm human in proposal areas
+            box_area = []
+            for box in self.human_boxes:
+                area = self.which_human_area(box[:4])
+                box_area.append(area)
+            box_area = np.array(box_area)
+            self.human_boxes = self.human_boxes[box_area != "outside"]
+            
+            # tracking
             online_targets = self.tracker.update(self.human_boxes, self.frame.shape[:2], input_size)
             input_h, input_w = input_size
             scale = min(input_h / float(self.org_h), input_w / float(self.org_w))
@@ -77,7 +89,6 @@ class Frame(object):
             online_ids = []
             online_scores = []
             
-            # 
             for track in online_targets:
                 tlwh = track.tlwh
                 tid = track.track_id
@@ -94,12 +105,16 @@ class Frame(object):
                     cv2.rectangle(self.frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                     cv2.putText(self.frame, str(online_ids[idx]), (int(x1), int(y1-7)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
                     
-            # co nguoi thi moi co tay
+            # after tracking, confirm there are humans available in proposal area
             if len(online_tlwhs) > 0:
                 
                 self.human_boxes = np.concatenate((np.array(online_tlwhs), np.array(online_ids)), axis=1) 
+                
+                # find hands belong to who
                 if len(self.hands_boxes) > 0:
                     self.whose_hand()
+                
+                # append human objects 
                 for i, box in enumerate(self.human_boxes):
                     p_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
                     p_id = box[-1]
@@ -110,23 +125,7 @@ class Frame(object):
                         h_obj = Hand(6, h_box, h[4], h[-1])
                         hands_list.append(h_obj)
                     p_obj = Human(0, online_scores[i], p_box, online_ids[i], hands_list)
-                    self.frame_objs["items"].append(p_obj)
-                    
-        # # Get Person Objects
-        # for i, p_box in enumerate(online_tlwhs):
-        #     p_box = Box(Point(p_box[0], p_box[1]), Point(p_box[2], p_box[3]))
-        #     p_obj = Human(0, online_scores[i], p_box, online_ids[i])
-        #     self.frame_objs.append(p_obj)
-        
-        # # Get Hand Objects
-        # for i, box in enumerate(self.boxes):
-        #     if self.classes_id[i] == 6:
-        #         if len(online_tlwhs) < 1:
-        #             continue
-        #         else:
-        #             h_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
-        #             h_obj = Hand(6, box[4], h_box)
-        #             self.frame_objs.append(h_obj)
+                    self.frame_objs["humans"].append(p_obj)
     
     def whose_hand(self):
         
@@ -148,11 +147,6 @@ class Frame(object):
                     tmp_id = human_box[-1]
             self.hands_boxes[i][-1] = tmp_id
             count[tmp_id] += 1
-            
-        # for i, cls_id in enumerate(self.classes_id):
-        #     if cls_id == 0:
-        #         self.frame_objs.append(Object(cls_id, ))
-        # return np.concatenate((np.array(online_tlwhs), np.array(online_ids)), axis=1) 
         
                 
     
