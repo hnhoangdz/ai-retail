@@ -23,8 +23,8 @@ COUNTER = 0
 CONSECUTIVE_FRAME = 5
 
 class COLOR:
-    red = (255,0,0)
-    blue = (0,0,255)
+    red = (0,0,255)
+    blue = (255,0,0)
     green = (0,255,0)
     yellow = (255,255,0)
     magenta = (255,0,255)

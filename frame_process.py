@@ -46,6 +46,15 @@ class Frame(object):
         area = search_area(1920, 1080, midx, midy)
         return area
     
+    def get_items_on_shelf(self):
+        count = 0
+        for box in self.items_boxes:
+            if self.which_human_area(box[:4]) == "shelf":
+                count += 1
+        if count == 5:
+            return self.items_boxes[:, 5]
+        return None
+    
     def detect(self, conf_thresh, iou_thresh, device, classes = None):
         
         self.boxes, _ = obj_detector(self.detector, 
@@ -55,12 +64,14 @@ class Frame(object):
                                   iou_thresh,
                                   device)
         
-        self.boxes = self.boxes.detach().cpu().numpy()        
+        self.boxes = self.boxes.detach().numpy()     
+        # import ipdb; ipdb.set_trace()   
         self.classes_id = self.boxes[:, 5]
         
         self.human_boxes = self.boxes[self.classes_id == 0]
         self.hands_boxes = self.boxes[self.classes_id == 6]
-        
+        self.items_boxes = self.boxes[(self.classes_id != 0) & (self.classes_id != 6)]
+    
         # for idx, box in enumerate(self.human_boxes):
             # print(box)
             # x1, y1, x2, y2 = box
@@ -133,11 +144,11 @@ class Frame(object):
                     hands_list = list()
                     
                     for h in hands:
-                        print("h ", h)
+                        # print("h ", h)
                         h_box = Box(Point(h[0], h[1]), Point(h[2], h[3]))
-                        print("h_box ", h_box)
+                        # print("h_box ", h_box)
                         h_obj = Hand(6, h_box, h[4], h[-1], frame_id=self.ith)
-                        print("h_obj ", h_obj.box.top_left.x)
+                        # print("h_obj ", h_obj.box.top_left.x)
                         hands_list.append(h_obj)
                     p_obj = Human(0, p_box, online_scores[i], online_ids[i][0], hands_list, frame_id=self.ith)
                     
@@ -148,7 +159,7 @@ class Frame(object):
         self.hands_boxes = np.concatenate((self.hands_boxes, np.array([[-1]*len(self.hands_boxes)]).T), axis=1)
 
         count = {}
-        print(len(self.human_boxes))
+        # print(len(self.human_boxes))
         for human_box in self.human_boxes:
             count[human_box[-1]] = 0
                 

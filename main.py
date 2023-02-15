@@ -41,14 +41,17 @@ class Behavior:
             # Check last frame
             for human_obj in self.consecutive_humans[-1]:
                 
-                status[human_obj] = []
+                status[human_obj] = {
+                    "area": "",
+                    "items": []
+                }
                 
                 if human_obj.id == id:
-                    
+                    status[human_obj]["is_payed"] = False
                     human_box = human_obj.box
                     midx, midy = human_box.center_point()
                     area = search_area(1920, 1080, midx, midy)
-                    status[human_obj].append(area)
+                    status[human_obj]["area"] = area
                     
                     in_area = True if area != "outside" else False
                     
@@ -61,7 +64,7 @@ class Behavior:
                         for item_obj in self.consecutive_items[-1]:
                             if hand_obj.touch(item_obj) and in_area:
                                 if item_obj not in status[human_obj]:
-                                    status[human_obj].append(item_obj)
+                                    status[human_obj]["items"].append(item_obj)
                                     
             in_area = True
             is_touching = True
@@ -87,18 +90,28 @@ class Behavior:
                                 
                                 if hand_obj.touch(item_obj):
                                     is_touching = True
-                                    
+                       
             confirm = in_area and is_touching
             if confirm == False:
-                status[curr_obj] = []
+                status[curr_obj]["items"] = []
                         
         return status
     
     def put_item_to_shelf(self):
         pass
 
-    def bring_item_to_pay(self):
-        pass
+    def bring_item_to_pay(self, current_state, items_on_shelf):
+        
+        for human in current_state:
+            on_store = False
+            if current_state[human]["area"] == "payment":
+                items_obj = current_state[human]["items"]
+                for item in items_obj:
+                    on_store = item.cls_id in items_on_shelf
+            current_state[human]["is_payed"] = on_store
+        
+        return current_state
+            
 
     def stolen(self):
         '''
@@ -162,7 +175,10 @@ class VideoRetailStore(object):
         
         consecutive_frame_humans = []
         consecutive_frame_items = []
-                
+        # previous_states = []
+        
+        items_on_shelf = None
+        
         while True:
             
             start_time = time.time()
@@ -170,13 +186,14 @@ class VideoRetailStore(object):
             if not ret:
                 print("error when reading camera")
                 break
-            
-            frame_copy = frame.copy()
-            org_h, org_w = self.im_height, self.im_width
 
             # Frame Processing
             frame_process = Frame(ith, frame, detector, tracker, display_area=True)
             frame_process.detect(args.conf_thresh, args.iou_thresh, device)
+            
+            if items_on_shelf is None:
+                items_on_shelf = frame_process.get_items_on_shelf()
+                
             frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area, visualize=False)
             
             # Get all objects apprearing in current frame
@@ -195,20 +212,49 @@ class VideoRetailStore(object):
             
             if ith >= 10:
                 behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                result_get_item_behavior = behavior.get_item()
-                # import ipdb; ipdb.set_trace()
-                if len(result_get_item_behavior) != 0:
-                    # import ipdb; ipdb.set_trace()
-                    visual_object(input=result_get_item_behavior, image=frame)
+                current_state = behavior.get_item()
+                # print(current_state)
+                current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
+                print(current_state)
+                # visualization
+                for human, meta_data in current_state.items():
+                    area = meta_data['area']
+                    items = meta_data['items']
+                    payed = meta_data['is_payed']
+                    color_human = COLOR.green if area == 'payment' else COLOR.blue
+                    visualize_human(human, 
+                        image=frame, 
+                        color=color_human,
+                        thickness=2,
+                        label=f"{classes[human.cls_id]}: {human.id}",
+                    )
 
-                print("=============================================")
+                    color_item = COLOR.yellow if payed==True else COLOR.magenta
+                    for item in items:
+                        visualize_item(
+                            item,
+                            frame,
+                            color=color_item,
+                            thickness=2,
+                            label=classes[item.cls_id]
+
+                        )
+                        
+
+
+                    # import ipdb; ipdb.set_trace()
+
+                    # visual_object(input=current_state, image=frame)
+                # print(current_state)
+                # print("=============================================")
             
             
             # Display FPS
+
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
-            ith +=1      
+            ith += 1      
                    
             # cv2.imwrite("c.jpg", frame)
             
@@ -226,7 +272,7 @@ def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
     # Detection
-    parser.add_argument("--weights_path", type=str, default="./weights/best_record_v3.pt")
+    parser.add_argument("--weights_path", type=str, default="./weights/best.pt")
     # parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
     parser.add_argument("--conf_thresh", type=float, default=0.45, help="confidence threshold object detection")
     parser.add_argument("--iou_thresh", type=float, default=0.3, help="iou threshold object detection")
