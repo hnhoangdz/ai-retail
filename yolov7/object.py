@@ -24,7 +24,7 @@ class Box:
 
 class Object:
     
-    def __init__(self, cls_id, conf, box:Box, id=None, frame_id=0)-> None:
+    def __init__(self, cls_id, box:Box, conf, id=None, frame_id=0)-> None:
         self.cls_id = cls_id
         self.box = box # top left bottom right
         self.conf = conf
@@ -36,9 +36,11 @@ class Object:
             box: Box
         '''     
     
-    def overlap_with(self, object, thres=0.5) -> float:
+    def overlap_with(self, object) -> float:
+        
         # Compute S area 2 boxes
-        S_self = (self.box.bot_right.x - self.box.top_left.x) * (self.box.bot_right.y - self.box.top_left.y)
+        # import ipdb; ipdb.set_trace()
+        S_self = (self.box.bot_right.x - self.box.top_left.x)*(self.box.bot_right.y - self.box.top_left.y)
         S_object = (object.box.bot_right.x - object.box.top_left.x)*(object.box.bot_right.y - object.box.top_left.y)
 
         # Compute coor overlap area
@@ -66,13 +68,13 @@ class Hand(Object):
         super().__init__(cls_id, box, conf, frame_id=frame_id)
         self.id_person = id_person
 
-    def touch(self, item:Item, thres=0.5):
+    def touch(self, item:Item, thresh=0.5):
         iou_score = self.overlap_with(item)
-        return True if iou_score >= thres else False
+        return True if iou_score >= thresh else False
 
 class Human(Object):
-    def __init__(self, cls_id, conf, box: Box, id, hands:List[Hand], frame_id) -> None:
-        super().__init__(cls_id, conf, box, id, frame_id)
+    def __init__(self, cls_id, box: Box, conf, id, hands:List[Hand], frame_id) -> None:
+        super().__init__(cls_id, box, conf, id, frame_id)
         self.id = id
         self.hands = hands
 
