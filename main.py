@@ -23,7 +23,8 @@ from cfg import *
 from frame_process import Frame
 
 class Behavior:
-    # Identify behavior of one person during consecutive 10 frames
+    
+    # Identify behavior of people during consecutive 10 frames
     def __init__(self, consecutive_humans, consecutive_items, last_human_ids) -> None:
         self.consecutive_humans = consecutive_humans # i -> i+10
         self.consecutive_items = consecutive_items # i -> i+10
@@ -32,23 +33,52 @@ class Behavior:
     def get_item(self):
         
         status = {}
+        
         # Iterate all humans id
         for id in self.last_human_ids:
             
-            in_shelf = True
+            # Check last frame
+            for human_obj in self.consecutive_humans[-1]:
+                
+                status[human_obj] = []
+                
+                if human_obj.id == id:
+                    
+                    human_box = human_obj.box
+                    midx, midy = human_box.center_point()
+                    area = search_area(1920, 1080, midx, midy)
+                    status[human_obj].append(area)
+                    
+                    in_area = True if area != "outside" else False
+                    
+                    if in_area == False:
+                        continue
+                    
+                    human_hands = human_obj.hands
+                    
+                    for hand_obj in human_hands:
+                        for item_obj in self.consecutive_items[-1]:
+                            if hand_obj.touch(item_obj) and in_area:
+                                if item_obj not in status[human_obj]:
+                                    status[human_obj].append(item_obj)
+                                    
+            in_area = True
             is_touching = True
+            curr_obj = None
             
-            # Itearte each frame
-            for frame_humans, frame_items in zip(self.consecutive_humans, self.consecutive_items):
+            # Itearte each frame in remain
+            for frame_humans, frame_items in zip(self.consecutive_humans[:-1], 
+                                                 self.consecutive_items[:-1]):
                 
                 # Iterate humans object in each frame
                 for human_obj in frame_humans:
+                    
                     if human_obj.id == id:
-                        
+                        curr_obj = human_obj
                         human_box = human_obj.box
                         midx, midy = human_box.center_point()
                         area = search_area(1920, 1080, midx, midy)
-                        in_shelf = True if area == "shelf" else False
+                        in_area = True if area != "outside" else False
                         human_hands = human_obj.hands
                         
                         for hand_obj in human_hands:
@@ -57,17 +87,19 @@ class Behavior:
                                 if hand_obj.touch(item_obj):
                                     is_touching = True
                                     
-            status[id] = in_shelf and is_touching
+            confirm = in_area and is_touching
+            if confirm == False:
+                status[curr_obj] = []
                         
         return status
     
-    def put_item_to_shelf(self) -> bool:
+    def put_item_to_shelf(self):
         pass
 
-    def bring_item_to_pay(self) -> bool:
+    def bring_item_to_pay(self):
         pass
 
-    def stolen(self) -> bool:
+    def stolen(self):
         '''
            :))
         '''
@@ -164,6 +196,7 @@ class VideoRetailStore(object):
                 behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
                 print(behavior.get_item())
                 print("=============================================")
+                
             # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
