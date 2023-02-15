@@ -21,6 +21,7 @@ import time
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
 from cfg import *
 from frame_process import Frame
+from ultils.visualize import visualize_human, visualize_item, visual_object
 
 class Behavior:
     
@@ -176,7 +177,7 @@ class VideoRetailStore(object):
             # Frame Processing
             frame_process = Frame(ith, frame, detector, tracker, display_area=True)
             frame_process.detect(args.conf_thresh, args.iou_thresh, device)
-            frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
+            frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area, visualize=False)
             
             # Get all objects apprearing in current frame
             # Return a dictionary, contains humans & items object
@@ -194,16 +195,22 @@ class VideoRetailStore(object):
             
             if ith >= 10:
                 behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                print(behavior.get_item())
+                result_get_item_behavior = behavior.get_item()
+                # import ipdb; ipdb.set_trace()
+                if len(result_get_item_behavior) != 0:
+                    # import ipdb; ipdb.set_trace()
+                    visual_object(input=result_get_item_behavior, image=frame)
+
                 print("=============================================")
-                
+            
+            
             # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
             ith +=1      
                    
-            cv2.imwrite("c.jpg", frame)
+            # cv2.imwrite("c.jpg", frame)
             
             if self.args.display:
                 cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
