@@ -61,10 +61,10 @@ class Frame(object):
         self.human_boxes = self.boxes[self.classes_id == 0]
         self.hands_boxes = self.boxes[self.classes_id == 6]
         
-        for idx, box in enumerate(self.human_boxes):
+        # for idx, box in enumerate(self.human_boxes):
             # print(box)
             # x1, y1, x2, y2 = box
-            cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2) 
+            # cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2) 
         
         # Get Item Objects
         for i, box in enumerate(self.boxes):
