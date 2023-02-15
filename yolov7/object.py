@@ -24,10 +24,11 @@ class Box:
 
 class Object:
     
-    def __init__(self, cls_id, conf, box:Box, id=None)-> None:
+    def __init__(self, cls_id, conf, box:Box, id=None, frame_id=0)-> None:
         self.cls_id = cls_id
         self.box = box # top left bottom right
         self.conf = conf
+        self.frame_id = frame_id
         '''
             id: id_tracking
             cls_id: class_id fit CLASS object above
@@ -57,12 +58,12 @@ class Object:
         return Iou
 
 class Item(Object):
-    def __init__(self, cls_id, box: Box, conf) -> None:
-        super().__init__(cls_id, box, conf)
+    def __init__(self, cls_id, box: Box, conf, frame_id) -> None:
+        super().__init__(cls_id, box, conf, frame_id=frame_id)
 
 class Hand(Object):
-    def __init__(self, cls_id, box: Box, conf, id_person) -> None:
-        super().__init__(cls_id, box, conf)
+    def __init__(self, cls_id, box: Box, conf, id_person, frame_id) -> None:
+        super().__init__(cls_id, box, conf, frame_id=frame_id)
         self.id_person = id_person
 
     def touch(self, item:Item, thres=0.5):
@@ -70,8 +71,8 @@ class Hand(Object):
         return True if iou_score >= thres else False
 
 class Human(Object):
-    def __init__(self, cls_id, conf, box: Box, id, hands:List[Hand]) -> None:
-        super().__init__(cls_id, conf, box, id)
+    def __init__(self, cls_id, conf, box: Box, id, hands:List[Hand], frame_id) -> None:
+        super().__init__(cls_id, conf, box, id, frame_id)
         self.id = id
         self.hands = hands
 

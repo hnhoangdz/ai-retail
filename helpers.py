@@ -52,7 +52,9 @@ def load_model(weight_path, device):
     return model
 
 def search_area(w, h, midx, midy):
-
+    
+    # w = image.shape[1]
+    # h = image.shape[0]
     xf = midx/w
     yf = midy/h
     
@@ -69,8 +71,8 @@ def search_area(w, h, midx, midy):
     yf3aa = -4.267*xf + 3.445
     yf4aa = 1.068*xf + 0.35
     
-    cv2.circle(image, (int(midx), int(midy)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    cv2.circle(image, (int(midx), int(yf1s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(midy)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yf1s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
     # cv2.circle(image, (int(midx), int(yf2s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
     # cv2.circle(image, (int(midx), int(yf3s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
     # cv2.circle(image, (int(midx), int(yf4s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
