@@ -46,6 +46,15 @@ class Frame(object):
         area = search_area(1920, 1080, midx, midy)
         return area
     
+    def get_items_on_shelf(self):
+        count = 0
+        for box in self.items_boxes:
+            if self.which_human_area(box[:4]) == "shelf":
+                count += 1
+        if count == 5:
+            return self.items_boxes[:, 5]
+        return None
+    
     def detect(self, conf_thresh, iou_thresh, device, classes = None):
         
         self.boxes, _ = obj_detector(self.detector, 
@@ -60,7 +69,8 @@ class Frame(object):
         
         self.human_boxes = self.boxes[self.classes_id == 0]
         self.hands_boxes = self.boxes[self.classes_id == 6]
-        
+        self.items_boxes = self.boxes[(self.classes_id != 0) & (self.classes_id != 6)]
+    
         for idx, box in enumerate(self.human_boxes):
             # print(box)
             # x1, y1, x2, y2 = box
