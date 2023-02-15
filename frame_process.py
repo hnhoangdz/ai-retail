@@ -70,7 +70,7 @@ class Frame(object):
         for i, box in enumerate(self.boxes):
             if self.classes_id[i] != 0 and self.classes_id[i] != 6:
                 i_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
-                i_obj = Item(self.classes_id[i], box[4], i_box, frame_id=self.ith)
+                i_obj = Item(self.classes_id[i], i_box, box[4], frame_id=self.ith)
                 self.frame_objs["items"].append(i_obj)
                 
     def tracking(self, input_size, aspect_ratio_thresh, min_box_area, visualize=True):
@@ -81,7 +81,6 @@ class Frame(object):
             box_area = []
             for box in self.human_boxes:
                 area = self.which_human_area(box[:4])
-                print(area)
                 box_area.append(area)
             box_area = np.array(box_area)
             self.human_boxes = self.human_boxes[box_area != "outside"]
@@ -127,15 +126,21 @@ class Frame(object):
                 
                 # append human objects 
                 for i, box in enumerate(self.human_boxes):
+                    
                     p_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
                     p_id = box[-1]
                     hands = self.hands_boxes[self.hands_boxes[:,-1] == p_id]
                     hands_list = list()
+                    
                     for h in hands:
+                        print("h ", h)
                         h_box = Box(Point(h[0], h[1]), Point(h[2], h[3]))
+                        print("h_box ", h_box)
                         h_obj = Hand(6, h_box, h[4], h[-1], frame_id=self.ith)
+                        print("h_obj ", h_obj.box.top_left.x)
                         hands_list.append(h_obj)
-                    p_obj = Human(0, online_scores[i], p_box, online_ids[i], hands_list, frame_id=self.ith)
+                    p_obj = Human(0, p_box, online_scores[i], online_ids[i][0], hands_list, frame_id=self.ith)
+                    
                     self.frame_objs["humans"].append(p_obj)
     
     def whose_hand(self):

@@ -30,8 +30,8 @@ class Behavior:
         self.last_human_ids = last_human_ids
         
     def get_item(self):
+        
         status = {}
-        print(self.last_human_ids)
         # Iterate all humans id
         for id in self.last_human_ids:
             
@@ -46,15 +46,17 @@ class Behavior:
                     if human_obj.id == id:
                         
                         human_box = human_obj.box
-                        midx, midy = human_box.center_point
+                        midx, midy = human_box.center_point()
                         area = search_area(1920, 1080, midx, midy)
                         in_shelf = True if area == "shelf" else False
                         human_hands = human_obj.hands
                         
                         for hand_obj in human_hands:
                             for item_obj in frame_items:
+                                
                                 if hand_obj.touch(item_obj):
                                     is_touching = True
+                                    
             status[id] = in_shelf and is_touching
                         
         return status
@@ -160,14 +162,15 @@ class VideoRetailStore(object):
             
             if ith >= 10:
                 behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                print(len(consecutive_frame_humans))
                 print(behavior.get_item())
-                    
+                print("=============================================")
             # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
-            ith +=1             
+            ith +=1      
+                   
+            cv2.imwrite("c.jpg", frame)
             
             if self.args.display:
                 cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
