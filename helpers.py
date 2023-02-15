@@ -51,10 +51,10 @@ def load_model(weight_path, device):
         model.half().to(device)
     return model
 
-def search_area(image, midx, midy):
+def search_area(w, h, midx, midy):
     
-    w = image.shape[1]
-    h = image.shape[0]
+    # w = image.shape[1]
+    # h = image.shape[0]
     xf = midx/w
     yf = midy/h
     

@@ -24,37 +24,40 @@ from frame_process import Frame
 
 class Behavior:
     # Identify behavior of one person during consecutive 10 frames
-    def __init__(self, humans, items, current_frame) -> None:
-        self.humans = humans
-        self.items = items
-        self.current_frame = current_frame
+    def __init__(self, consecutive_humans, consecutive_items, last_human_ids) -> None:
+        self.consecutive_humans = consecutive_humans # i -> i+10
+        self.consecutive_items = consecutive_items # i -> i+10
+        self.last_human_ids = last_human_ids
         
-    def get_item(self) -> bool:
-        
-        if len(self.humans) < 1: return False
-        
-        area = ""
-        is_hand_picking = False
-        
-        for human in self.humans:
+    def get_item(self):
+        status = {}
+        print(self.last_human_ids)
+        # Iterate all humans id
+        for id in self.last_human_ids:
             
-            print(human.__class__.__name__)
-            human_box = human.box
-            midx, midy = human_box.center_point()
-            area = search_area(self.current_frame, midx, midy)
-            print(area)
-            if area != "shelf":
-                return False
+            in_shelf = True
+            is_touching = True
             
-            human_hands = human.hands
-            
-            for hand in human_hands:
-                print(hand.__class__.__name__)
-                for item in self.items:
-                    print(item.__class__.__name__)
-                    is_hand_picking = hand.touch(item)
-                    
-        return True if (area == "shelf" and is_hand_picking) else False
+            # Itearte each frame
+            for frame_humans, frame_items in zip(self.consecutive_humans, self.consecutive_items):
+                
+                # Iterate humans object in each frame
+                for human_obj in frame_humans:
+                    if human_obj.id == id:
+                        
+                        human_box = human_obj.box
+                        midx, midy = human_box.center_point
+                        area = search_area(1920, 1080, midx, midy)
+                        in_shelf = True if area == "shelf" else False
+                        human_hands = human_obj.hands
+                        
+                        for hand_obj in human_hands:
+                            for item_obj in frame_items:
+                                if hand_obj.touch(item_obj):
+                                    is_touching = True
+            status[id] = in_shelf and is_touching
+                        
+        return status
     
     def put_item_to_shelf(self) -> bool:
         pass
@@ -122,49 +125,43 @@ class VideoRetailStore(object):
         
         ith = 0
         
-        total_frame_humans = []
-        total_frame_items = []
-        
+        consecutive_frame_humans = []
+        consecutive_frame_items = []
+                
         while True:
             
             start_time = time.time()
             ret, frame = self.video.read()
-            frame_copy = frame.copy()
             if not ret:
                 print("error when reading camera")
                 break
             
+            frame_copy = frame.copy()
             org_h, org_w = self.im_height, self.im_width
-            print(org_h, org_w)
+
             # Frame Processing
             frame_process = Frame(ith, frame, detector, tracker, display_area=True)
             frame_process.detect(args.conf_thresh, args.iou_thresh, device)
             frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
             
             # Get all objects apprearing in current frame
-            frame_objs = frame_process.frame_objs
+            # Return a dictionary, contains humans & items object
+            curr_frame_objs = frame_process.frame_objs 
+            last_human_ids = [human_obj.id for human_obj in curr_frame_objs["humans"]]
             
-            # for obj in frame_objs:
-            #     if obj.cls_id == 0:
-            #         human_box = obj.box
-            #         top,left = human_box.top_left.x, human_box.top_left.y
-            #         bottom, right =  human_box.bot_right.x, human_box.bot_right.y
-            #         print(top, left, bottom,right)
-            #         human_hands_box = obj.hands
-                
             # Append all objects to list in current frame
-            total_frame_humans.append(frame_objs["humans"])
-            total_frame_items.append(frame_objs["items"])
+            consecutive_frame_humans.append(curr_frame_objs["humans"])
+            consecutive_frame_items.append(curr_frame_objs["items"])
             
             # 10 consecutive frames
-            if len(total_frame_humans) == 11:
-                total_frame_humans.pop(0)
-                total_frame_items.pop(0)
+            if len(consecutive_frame_humans) == 11:
+                consecutive_frame_humans.pop(0)
+                consecutive_frame_items.pop(0)
             
             if ith >= 10:
-                for frame_humans in total_frame_humans:
-                    behavior = Behavior(frame_humans, total_frame_items, frame_copy)
-                    print(behavior.get_item())
+                behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
+                print(len(consecutive_frame_humans))
+                print(behavior.get_item())
                     
             # Display FPS
             end_time = time.time()
@@ -181,7 +178,7 @@ class VideoRetailStore(object):
                 
             if self.args.save_path:
                 self.writer.write(frame)
-            
+                                
 def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
     
@@ -204,11 +201,11 @@ def get_parser():
 
     # Tracking args
     parser.add_argument("--input_size", type=tuple, default=(800, 1440), help="input size image in tracker")
-    parser.add_argument("--track_thresh", type=float, default=0.5, help="tracking confidence threshold")
+    parser.add_argument("--track_thresh", type=float, default=0.45, help="tracking confidence threshold")
     parser.add_argument("--track_buffer", type=int, default=30, help="the frames for keep lost tracks")
-    parser.add_argument("--match_thresh", type=float, default=0.8, help="matching threshold for tracking")
+    parser.add_argument("--match_thresh", type=float, default=0.6, help="matching threshold for tracking")
     parser.add_argument(
-        "--aspect_ratio_thresh", type=float, default=1.2,
+        "--aspect_ratio_thresh", type=float, default=1.0,
         help="threshold for filtering out boxes of which aspect ratio are above the given value."
     )
     parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
