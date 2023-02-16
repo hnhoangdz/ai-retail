@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 class Frame(object):
-    def __init__(self, ith, frame, detector, tracker, display_area=True):
+    def __init__(self, ith, frame, detector, tracker, display_area=False):
         self.ith = ith
         self.frame = frame
         self.frame_copy = self.frame.copy()
@@ -30,16 +30,17 @@ class Frame(object):
         
     def __draw_area(self):
         # Draw shelf-area
-        draw_line(self.frame, 0.2, 0.43, 0.39, 0.2) # t
-        draw_line(self.frame, 0.39, 0.2, 0.44, 0.4) # r
-        draw_line(self.frame, 0.44, 0.4, 0.29, 0.64) # b
-        draw_line(self.frame, 0.2, 0.43, 0.29, 0.64) # l
+        # draw_line(self.frame, 0.2, 0.43, 0.39, 0.2) # t
+        # draw_line(self.frame, 0.39, 0.2, 0.44, 0.4) # r
+        # draw_line(self.frame, 0.44, 0.4, 0.29, 0.64) # b
+        # draw_line(self.frame, 0.2, 0.43, 0.29, 0.64) # l
         
-        # Draw attend-area
-        draw_line(self.frame, 0.14, 0.5, 0.4, 0.17) # t
-        draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
-        draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
-        draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
+        # # Draw attend-area
+        # draw_line(self.frame, 0.14, 0.5, 0.4, 0.17) # t
+        # draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
+        # draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
+        # draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
+        pass
         
     def which_human_area(self, box):
         midx, midy = bbox_to_center(box)
@@ -64,7 +65,8 @@ class Frame(object):
                                   iou_thresh,
                                   device)
         
-        self.boxes = self.boxes.detach().numpy()     
+        self.boxes = self.boxes.detach().cpu().numpy()   
+        # print(self.boxes)
         # import ipdb; ipdb.set_trace()   
         self.classes_id = self.boxes[:, 5]
         

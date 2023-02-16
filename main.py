@@ -178,7 +178,7 @@ class VideoRetailStore(object):
         # previous_states = []
         
         items_on_shelf = None
-        
+        last_human_ids = None
         while True:
             
             start_time = time.time()
@@ -215,7 +215,7 @@ class VideoRetailStore(object):
                 current_state = behavior.get_item()
                 # print(current_state)
                 current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
-                print(current_state)
+                # print(current_state)
                 # visualization
                 for human, meta_data in current_state.items():
                     area = meta_data['area']
@@ -304,7 +304,7 @@ def get_parser():
 
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(device)
+    print(f"Devide:{device}")
     args = get_parser().parse_args()
     
     # Detection
