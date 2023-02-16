@@ -35,7 +35,7 @@ class Behavior:
         
         status = {}
         
-        # Iterate all humans id
+        # Iterate all humans id in current frame
         for id in self.last_human_ids:
             
             # Check last frame
@@ -55,7 +55,7 @@ class Behavior:
                     
                     in_area = True if area != "outside" else False
                     
-                    if in_area == False:
+                    if not in_area:
                         continue
                     
                     human_hands = human_obj.hands
@@ -65,35 +65,47 @@ class Behavior:
                             if hand_obj.touch(item_obj) and in_area:
                                 if item_obj not in status[human_obj]:
                                     status[human_obj]["items"].append(item_obj)
+            
                                     
+        print("last status ", status)   
+        for last_human_obj in status:   
+            
+            # Check if last_human_obj got item in 10 consecutive frames or not 
             in_area = True
             is_touching = True
-            curr_obj = None
+            # curr_obj = None
             
-            # Itearte each frame in remain
+            # Itearte each frame in the rest
             for frame_humans, frame_items in zip(self.consecutive_humans[:-1], 
-                                                 self.consecutive_items[:-1]):
+                                                    self.consecutive_items[:-1]):
+                
+                if (not in_area) or (not is_touching):
+                    break
                 
                 # Iterate humans object in each frame
                 for human_obj in frame_humans:
                     
-                    if human_obj.id == id:
-                        curr_obj = human_obj
+                    if human_obj == last_human_obj:
+                        
+                        # curr_obj = human_obj
                         human_box = human_obj.box
                         midx, midy = human_box.center_point()
                         area = search_area(1920, 1080, midx, midy)
                         in_area = True if area != "outside" else False
+                        
+                        if not in_area:
+                            break
+                        
                         human_hands = human_obj.hands
                         
                         for hand_obj in human_hands:
                             for item_obj in frame_items:
-                                
-                                if hand_obj.touch(item_obj):
-                                    is_touching = True
-                       
+                                is_touching = True if hand_obj.touch(item_obj) else False
+                                    
+            # print("curr_obj ", curr_obj) 
             confirm = in_area and is_touching
-            if confirm == False:
-                status[curr_obj]["items"] = []
+            if not confirm:
+                status[last_human_obj]["items"] = []
                         
         return status
     
@@ -220,6 +232,7 @@ class VideoRetailStore(object):
                 # Get behavior of human
                 if ith >= 10:
                     behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
+                    print("last_human_ids ", last_human_ids)
                     current_state = behavior.get_item()
                     current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
                     print("aaaaaaaaaaaa ", current_state)
@@ -257,7 +270,7 @@ def get_parser():
     parser.add_argument("--video", type=str, default="", help="input video link")
 
     # Input and ouput
-    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output2.avi", help="input video")
+    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
     parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
