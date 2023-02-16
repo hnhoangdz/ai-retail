@@ -75,6 +75,7 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     pred = non_max_suppression(pred, conf_thresh, iou_thresh, classes, agnostic=False)
     t2 = time_synchronized()
     fps = 1/(t2-t1)
+    
     # Get final results
     results_det = pred[0]
     if results_det is not None and len(results_det):

@@ -1,6 +1,7 @@
 
 import sys
 sys.path.insert(0, './yolov7')
+
 import torch
 from torchvision import transforms
 
@@ -100,7 +101,7 @@ class Behavior:
         pass
 
     def bring_item_to_pay(self, current_state, items_on_shelf):
-        
+                
         for human in current_state:
             on_store = False
             if current_state[human]["area"] == "payment":
@@ -186,37 +187,47 @@ class VideoRetailStore(object):
                 print("error when reading camera")
                 break
 
-            # Frame Processing
+            # Init frame object 
             frame_process = Frame(ith, frame, detector, tracker, display_area=True)
+            
+            # Frame detection
             frame_process.detect(args.conf_thresh, args.iou_thresh, device)
             
-            if items_on_shelf is None:
-                items_on_shelf = frame_process.get_items_on_shelf()
+            # If there are detected objects 
+            if frame_process.is_detected:
                 
-            frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
-            
-            # Get all objects apprearing in current frame
-            # Return a dictionary, contains humans & items object
-            curr_frame_objs = frame_process.frame_objs 
-            last_human_ids = [human_obj.id for human_obj in curr_frame_objs["humans"]]
-            
-            # Append all objects to list in current frame
-            consecutive_frame_humans.append(curr_frame_objs["humans"])
-            consecutive_frame_items.append(curr_frame_objs["items"])
-            
-            # 10 consecutive frames
-            if len(consecutive_frame_humans) == 11:
-                consecutive_frame_humans.pop(0)
-                consecutive_frame_items.pop(0)
-            
-            if ith >= 10:
-                behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                current_state = behavior.get_item()
-                print(current_state)
-                current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
-                print(current_state)
-                print("=============================================")
+                # Return id of items that appeared first on shelf
+                if items_on_shelf is None:
+                    items_on_shelf = frame_process.get_items_on_shelf()
+
+                # Tracking humans
+                frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
                 
+                # Get all objects apprearing in current frame
+                # Return a dictionary, contains humans & items object
+                curr_frame_objs = frame_process.frame_objs 
+                last_human_ids = [human_obj.id for human_obj in curr_frame_objs["humans"]]
+                
+                # Append all objects to list in current frame
+                consecutive_frame_humans.append(curr_frame_objs["humans"])
+                consecutive_frame_items.append(curr_frame_objs["items"])
+                
+                # 10 consecutive frames
+                if len(consecutive_frame_humans) == 11:
+                    consecutive_frame_humans.pop(0)
+                    consecutive_frame_items.pop(0)
+                
+                # Get behavior of human
+                if ith >= 10:
+                    behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
+                    current_state = behavior.get_item()
+                    current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
+                    print("aaaaaaaaaaaa ", current_state)
+                    print("=============================================")
+            else:
+                consecutive_frame_humans = []
+                consecutive_frame_items = []
+                                
             # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
@@ -246,7 +257,7 @@ def get_parser():
     parser.add_argument("--video", type=str, default="", help="input video link")
 
     # Input and ouput
-    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
+    parser.add_argument("--input_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output2.avi", help="input video")
     parser.add_argument("--save_path", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v", help="output video codec (verify ffmpeg support)")
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')

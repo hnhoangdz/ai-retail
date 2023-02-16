@@ -68,7 +68,7 @@ class Hand(Object):
         super().__init__(cls_id, box, conf, frame_id=frame_id)
         self.id_person = id_person
 
-    def touch(self, item:Item, thresh=0.5):
+    def touch(self, item:Item, thresh=0.1):
         iou_score = self.overlap_with(item)
         return True if iou_score >= thresh else False
 
