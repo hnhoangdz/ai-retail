@@ -50,9 +50,9 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     
     detector.to(device)
     
-    half = False
-    if str(device) != "cpu":
-        half = True
+    # half = False
+    # if str(device) != "cpu":
+    half = True
 
     img = image.copy()
     
@@ -62,7 +62,7 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
     img = np.ascontiguousarray(img)
     img = torch.from_numpy(img).to(device)
-    img = img.half() if half else img.float()  # uint8 to fp16/32
+    img = img.float()  # uint8 to fp16/32
     img /= 255.0  # 0 - 255 to 0.0 - 1.0
     if img.ndimension() == 3:
         img = img.unsqueeze(0)
@@ -78,6 +78,7 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     pred = non_max_suppression(pred, conf_thresh, iou_thresh, classes, agnostic=False)
     t2 = time_synchronized()
     fps = 1/(t2-t1)
+    
     # Get final results
     results_det = pred[0]
     if results_det is not None and len(results_det):
