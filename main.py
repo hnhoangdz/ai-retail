@@ -228,6 +228,8 @@ class VideoRetailStore(object):
                     current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
                     # print(current_state)
                     # visualization
+                    cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, COLOR.green)
+                    padding_text = 6
                     for human, meta_data in current_state.items():
                         area = meta_data['area']
                         items = meta_data['items']
@@ -240,6 +242,9 @@ class VideoRetailStore(object):
                             label=f"{classes[human.cls_id]}: {human.id}",
                         )
 
+
+
+
                         color_item = COLOR.yellow if payed==True else COLOR.magenta
                         for item in items:
                             visualize_item(
@@ -250,6 +255,10 @@ class VideoRetailStore(object):
                                 label=classes[item.cls_id]
 
                             )
+                    
+                    
+                    
+
                             
 
 
@@ -269,10 +278,10 @@ class VideoRetailStore(object):
 
             end_time = time.time()
             fps = 1/(end_time - start_time)
-            cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0))
+            cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, COLOR.green)
             ith += 1      
                    
-            # cv2.imwrite("c.jpg", frame)
+            cv2.imwrite("visualization_image.jpg", frame)
             
             if self.args.display:
                 cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
@@ -281,8 +290,8 @@ class VideoRetailStore(object):
                     cv2.destroyAllWindows()
                     break
                 
-            if self.args.save_path:
-                self.writer.write(frame)
+            # if self.args.save_path:
+            #     self.writer.write(frame)
                                 
 def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")

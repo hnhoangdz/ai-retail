@@ -56,7 +56,7 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
 
     img = image.copy()
     
-    img = letterbox(img, new_shape=(1024, 1024))[0]
+    img = letterbox(img, new_shape=(640, 640))[0]
     
     # Convert
     img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
