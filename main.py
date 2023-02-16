@@ -242,10 +242,9 @@ class VideoRetailStore(object):
                     # print(current_state)
 
                     # visualization
+                     # visual text
                     x_text_start = 5
-                    y_text_start = 30
-                    cv2.putText(frame, f"FPS: {int(fps)}", (x_text_start, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 1, COLOR.green)
-                    padding_text = 6
+                    y_text_start = 130
                     for human, meta_data in current_state.items():
                         area = meta_data['area']
                         items = meta_data['items']
@@ -257,7 +256,8 @@ class VideoRetailStore(object):
                             thickness=2,
                             label=f"{classes[human.cls_id]}: {human.id}",
                         )
-                        cv2.putText(frame, f"person_id: {human.id}", (5, 30), cv2.FONT_HERSHEY_COMPLEX, 1, COLOR.blue)
+                        cv2.putText(frame, f"person {human.id}:", (x_text_start, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.green)
+                        x_start_item = x_text_start + 120
 
                         color_item = COLOR.yellow if payed==True else COLOR.magenta
 
@@ -268,8 +268,23 @@ class VideoRetailStore(object):
                                 color=color_item,
                                 thickness=2,
                                 label=classes[item.cls_id]
-
                             )
+                            cv2.putText(frame, f"{classes[item.cls_id]}, ", (x_start_item, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.magenta)
+                            x_start_item += 80
+                        y_text_start += 20
+
+                    # # visual text
+                    # x_text_start = 5
+                    # y_text_start = 130
+                    # for human, meta_data in current_state.items():
+                    #     cv2.putText(frame, f"person {human.id}:", (x_text_start, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.green)
+                    #     x_start_item = x_text_start + 120
+                    #     for item in items:
+                    #         cv2.putText(frame, f"{classes[item.cls_id]}, ", (x_start_item, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.magenta)
+                    #         x_start_item += 80
+                    #     y_text_start += 20
+
+
                 
             else:
                 consecutive_frame_humans = []
@@ -291,8 +306,8 @@ class VideoRetailStore(object):
                     cv2.destroyAllWindows()
                     break
                 
-            # if self.args.save_path:
-            #     self.writer.write(frame)
+            if self.args.save_path:
+                self.writer.write(frame)
                                 
 def get_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
@@ -316,9 +331,9 @@ def get_parser():
 
     # Tracking args
     parser.add_argument("--input_size", type=tuple, default=(800, 1440), help="input size image in tracker")
-    parser.add_argument("--track_thresh", type=float, default=0.45, help="tracking confidence threshold")
+    parser.add_argument("--track_thresh", type=float, default=0.3, help="tracking confidence threshold")
     parser.add_argument("--track_buffer", type=int, default=30, help="the frames for keep lost tracks")
-    parser.add_argument("--match_thresh", type=float, default=0.6, help="matching threshold for tracking")
+    parser.add_argument("--match_thresh", type=float, default=0.45, help="matching threshold for tracking")
     parser.add_argument(
         "--aspect_ratio_thresh", type=float, default=1.0,
         help="threshold for filtering out boxes of which aspect ratio are above the given value."
