@@ -96,14 +96,14 @@ class Frame(object):
         if len(self.human_boxes) > 1:
             
             # Ensure humans stand in proposal areas
-            box_area = []
-            for box in self.human_boxes:
-                area = self.which_human_area(box[:4])
-                box_area.append(area)
-            box_area = np.array(box_area)
-            self.human_boxes = self.human_boxes[box_area != "outside"]
+            # box_area = []
+            # for box in self.human_boxes:
+            #     area = self.which_human_area(box[:4])
+            #     box_area.append(area)
+            # box_area = np.array(box_area)
+            # self.human_boxes = self.human_boxes[box_area != "outside"]
             
-            # tracking
+            # Tracking
             online_targets = self.tracker.update(self.human_boxes, self.frame.shape[:2], input_size)
             input_h, input_w = input_size
             scale = min(input_h / float(self.org_h), input_w / float(self.org_w))
