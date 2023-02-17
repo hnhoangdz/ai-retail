@@ -32,7 +32,7 @@ def draw_line(image, xf1, yf1, xf2, yf2, color=(0, 0, 125)):
     b = yf1 - slope*xf1
     # print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
 
-    cv2.line(image, start_point, end_point, color, 4)
+    cv2.line(image, start_point, end_point, color, 1)
 
 def draw_box(image, xf1, yf1, w_box, h_box):
     w = image.shape[1]

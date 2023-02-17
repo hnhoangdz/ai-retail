@@ -34,16 +34,16 @@ class Frame(object):
     def __draw_area(self):
         
         # Draw shelf-area
-        # draw_line(self.frame, 0.2, 0.43, 0.39, 0.2) # t
-        # draw_line(self.frame, 0.39, 0.2, 0.44, 0.4) # r
-        # draw_line(self.frame, 0.44, 0.4, 0.29, 0.64) # b
-        # draw_line(self.frame, 0.2, 0.43, 0.29, 0.64) # l
+        draw_line(self.frame, 0.2, 0.43, 0.39, 0.2) # t
+        draw_line(self.frame, 0.39, 0.2, 0.44, 0.4) # r
+        draw_line(self.frame, 0.44, 0.4, 0.29, 0.64) # b
+        draw_line(self.frame, 0.2, 0.43, 0.29, 0.64) # l
         
-        # # Draw attend-area
-        # draw_line(self.frame, 0.14, 0.5, 0.4, 0.17) # t
-        # draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
-        # draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
-        # draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
+        # Draw attend-area
+        draw_line(self.frame, 0.14, 0.5, 0.4, 0.17) # t
+        draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
+        draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
+        draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
         pass
         
     def which_human_area(self, box):

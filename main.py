@@ -68,7 +68,7 @@ class Behavior:
                                     status[human_obj]["items"].append(item_obj)
             
                                     
-        print("last status ", status)   
+        # print("last status ", status)   
         for last_human_obj in status:   
             
             # Check if last_human_obj got item in 10 consecutive frames or not 
@@ -179,7 +179,7 @@ class VideoRetailStore(object):
         self.video.release()
         self.writer.release()
         if exc_type:
-            print(exc_type, exc_value, exc_traceback)
+            # print(exc_type, exc_value, exc_traceback)
             self.video = cv2.VideoCapture()
             
     def run(self):
@@ -233,7 +233,7 @@ class VideoRetailStore(object):
                 # Get behavior of human
                 if ith >= 10:
                     behavior = Behavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                    print("last_human_ids ", last_human_ids)
+                    # print("last_human_ids ", last_human_ids)
                     current_state = behavior.get_item()
                     current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
                     print("aaaaaaaaaaaa ", current_state)
