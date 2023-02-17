@@ -44,6 +44,12 @@ class Frame(object):
         draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
         draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
         draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
+
+        # Draw payment-area
+        draw_line(self.frame, 0.73, 0.33, 0.87, 0.4) # t
+        draw_line(self.frame, 0.87, 0.4, 0.9, 0.97) # r 
+        draw_line(self.frame, 0.73, 0.33, 0.58, 0.97) # l
+        draw_line(self.frame, 0.58, 0.97, 0.9, 0.97) # b
         pass
         
     def which_human_area(self, box):
