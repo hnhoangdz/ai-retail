@@ -1,12 +1,14 @@
 
+
 import sys
 sys.path.insert(0, './yolov7')
+
 import torch
 from torchvision import transforms
 
-from yolov7.detect_inf import obj_detector
-from yolov7.keypoint_inf import get_keypoints, get_hands_kpts, get_hands_box
-from yolov7.utils.torch_utils import select_device
+from detection.yolov7.detect_inf import obj_detector
+from detection.yolov7.keypoint_inf import get_keypoints, get_hands_kpts, get_hands_box
+from detection.yolov7.utils.torch_utils import select_device
 
 from byte_track.tracker.byte_tracker import BYTETracker
 from byte_track.tracking_utils.timer import Timer
@@ -17,6 +19,10 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import time
+
+from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
+from cfg import *
+from frame_process import Frame
 
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
 
