@@ -1,6 +1,6 @@
 import cv2
 import matplotlib.pyplot as plt
-from helpers import which_area, draw_line
+from helpers import search_area, draw_line
 import os
 import glob
 

@@ -1,4 +1,4 @@
-__pycache__/
+*/__pycache__/*
 *.pyc
 video/
 images/
@@ -7,7 +7,7 @@ results/
 */trained_models
 */weights
 */run
-*.jpii
+*.jpg
 *.pt
 *.mp4
 *.MOV

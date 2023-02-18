@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 class Frame(object):
-    def __init__(self, ith, frame, detector, tracker, display_area=True):
+    def __init__(self, ith, frame, detector, tracker, display_area=False):
         self.ith = ith
         self.frame = frame
         self.frame_copy = self.frame.copy()
@@ -34,18 +34,24 @@ class Frame(object):
     def __draw_area(self):
         
         # Draw shelf-area
-        draw_line(self.frame, 0.2, 0.43, 0.39, 0.2) # t
-        draw_line(self.frame, 0.39, 0.2, 0.44, 0.4) # r
-        draw_line(self.frame, 0.44, 0.4, 0.29, 0.64) # b
-        draw_line(self.frame, 0.2, 0.43, 0.29, 0.64) # l
+        draw_line(self.frame, 0.2, 0.43, 0.4, 0.17) # t
+        draw_line(self.frame, 0.4, 0.17, 0.5, 0.39) # r
+        draw_line(self.frame, 0.5, 0.39, 0.33, 0.68) # b
+        draw_line(self.frame, 0.2, 0.43, 0.33, 0.68) # l
         
         # Draw attend-area
         draw_line(self.frame, 0.14, 0.5, 0.4, 0.17) # t
         draw_line(self.frame, 0.4, 0.17, 0.73, 0.33) # r 
         draw_line(self.frame, 0.58, 0.97, 0.73, 0.33) # b
         draw_line(self.frame, 0.14, 0.5, 0.58, 0.97) # l
+
+        # Draw payment-area
+        draw_line(self.frame, 0.73, 0.33, 0.87, 0.4) # t
+        draw_line(self.frame, 0.87, 0.4, 0.9, 0.97) # r 
+        draw_line(self.frame, 0.73, 0.33, 0.58, 0.97) # l
+        draw_line(self.frame, 0.58, 0.97, 0.9, 0.97) # b
         
-    def which_human_area(self, box):
+    def which_area(self, box):
         midx, midy = bbox_to_center(box)
         area = search_area(1920, 1080, midx, midy)
         return area
@@ -53,35 +59,31 @@ class Frame(object):
     def get_items_on_shelf(self):
         count = 0
         for box in self.items_boxes:
-            if self.which_human_area(box[:4]) == "shelf":
+            if self.which_area(box[:4]) == "shelf":
                 count += 1
-        if count == 5:
-            return self.items_boxes[:, 5]
-        return None
+        return self.items_boxes[:, 5] if count == 5 else None
     
-    def detect(self, conf_thresh, iou_thresh, device, classes = None, visualize=True):
+    def detect(self, conf_thresh, iou_thresh, device, classes = None, visualize=False):
         
         self.boxes, _ = obj_detector(self.detector, 
-                                  self.frame_copy,
-                                  classes,
-                                  conf_thresh, 
-                                  iou_thresh,
-                                  device)
+                                    self.frame_copy,
+                                    classes,
+                                    conf_thresh, 
+                                    iou_thresh,
+                                    device)  
         
         self.boxes = self.boxes.detach().cpu().numpy()    
         
-        if len(self.boxes) == 0:
+        if len(self.boxes) < 1:
             self.is_detected = False
             
-        else:
+        else: 
             
             self.classes_id = self.boxes[:, 5]
-            
             self.human_boxes = self.boxes[self.classes_id == 0]
             self.hands_boxes = self.boxes[self.classes_id == 6]
             self.items_boxes = self.boxes[(self.classes_id != 0) & (self.classes_id != 6)]
 
-            
             if visualize:
                 for idx, box in enumerate(self.human_boxes):
                     cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2) 
@@ -92,15 +94,17 @@ class Frame(object):
                     i_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
                     i_obj = Item(self.classes_id[i], i_box, box[4], frame_id=self.ith)
                     self.frame_objs["items"].append(i_obj)
+            for idx, box in enumerate(self.items_boxes):
+                cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (255, 0, 0), 2)
                 
     def tracking(self, input_size, aspect_ratio_thresh, min_box_area, visualize=True):
         
         if len(self.human_boxes) > 1:
             
-            # Ensure humans stand in proposal areas
+            ## Ensure humans stand in proposal areas
             # box_area = []
             # for box in self.human_boxes:
-            #     area = self.which_human_area(box[:4])
+            #     area = self.which_area(box[:4])
             #     box_area.append(area)
             # box_area = np.array(box_area)
             # self.human_boxes = self.human_boxes[box_area != "outside"]
@@ -133,14 +137,21 @@ class Frame(object):
                 for idx, box in enumerate(self.hands_boxes):
                     cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (255, 0, 0), 2)
                     
+                
+                    
             # after tracking, confirm there are humans available in proposal area
             if len(online_tlwhs) > 0:
                 
-                self.human_boxes = np.concatenate((np.array(online_tlwhs), np.array(online_ids)), axis=1) 
-                
+                self.human_boxes = np.concatenate((np.array(online_tlwhs), \
+                                                   np.array(online_ids)), \
+                                                   axis=1) 
                 # find hands belong to who
                 if len(self.hands_boxes) > 0:
                     self.whose_hand()
+                    
+                # print("ith ", self.ith)
+                # print("hmmmmmmmm ", self.human_boxes)
+                # print("aaaaaaaaaaaaaa ", self.hands_boxes)
                 
                 # append human objects 
                 for i, box in enumerate(self.human_boxes):
@@ -154,16 +165,20 @@ class Frame(object):
                         h_box = Box(Point(h[0], h[1]), Point(h[2], h[3]))
                         h_obj = Hand(6, h_box, h[4], h[-1], frame_id=self.ith)
                         hands_list.append(h_obj)
+                        
                     p_obj = Human(0, p_box, online_scores[i], online_ids[i][0], hands_list, frame_id=self.ith)
                     
                     self.frame_objs["humans"].append(p_obj)
+            print("humannnnnnnnnn ", self.frame_objs["humans"])
     
     def whose_hand(self):
         
-        self.hands_boxes = np.concatenate((self.hands_boxes, np.array([[-1]*len(self.hands_boxes)]).T), axis=1)
+        # Find hands belong to who
+        self.hands_boxes = np.concatenate((self.hands_boxes, \
+                                           np.array([[-1]*len(self.hands_boxes)]).T), \
+                                           axis=1)
 
         count = {}
-
         for human_box in self.human_boxes:
             count[human_box[-1]] = 0
                 
@@ -178,6 +193,7 @@ class Frame(object):
                     continue
                 
                 overlap_area = get_iou(hand_box[:4], human_box[:4])
+                # print("overlap ", overlap_area)
                 if overlap_area > tmp_overlap:
                     tmp_overlap = overlap_area
                     tmp_id = human_box[-1]

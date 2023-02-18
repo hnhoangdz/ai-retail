@@ -11,8 +11,8 @@ class CLASSES:
 
 class Point:
     def __init__(self, x, y) -> None:
-        self.x = x
-        self.y = y
+        self.x = int(x)
+        self.y = int(y)
 
 class Box:
     def __init__(self, top_left:Point, bot_right:Point) -> None:
@@ -39,7 +39,6 @@ class Object:
     def overlap_with(self, object) -> float:
         
         # Compute S area 2 boxes
-        # import ipdb; ipdb.set_trace()
         S_self = (self.box.bot_right.x - self.box.top_left.x)*(self.box.bot_right.y - self.box.top_left.y)
         S_object = (object.box.bot_right.x - object.box.top_left.x)*(object.box.bot_right.y - object.box.top_left.y)
 
@@ -68,12 +67,13 @@ class Hand(Object):
         super().__init__(cls_id, box, conf, frame_id=frame_id)
         self.id_person = id_person
 
-    def touch(self, item:Item, thresh=0.1):
+    def touch(self, item:Item, thresh=0.01):
         iou_score = self.overlap_with(item)
+        print("iouuuuuuuuuuuuuuuu ", iou_score)
         return True if iou_score >= thresh else False
 
 class Human(Object):
-    def __init__(self, cls_id, box: Box, conf, id, hands:List[Hand], frame_id) -> None:
+    def __init__(self, cls_id, box: Box, conf, id, hands:list(), frame_id) -> None:
         super().__init__(cls_id, box, conf, id, frame_id)
         self.id = id
         self.hands = hands

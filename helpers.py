@@ -1,6 +1,7 @@
 import cv2
 import torch
 import numpy as np
+from cfg import *
 
 def coco_to_yolo(xmin, ymin, xmax, ymax, org_w, org_h):
     xcb, ycb, wb, hb = (xmax+xmin)/2, (ymax+ymin)/2, xmax-xmin, ymax-ymin
@@ -30,9 +31,10 @@ def draw_line(image, xf1, yf1, xf2, yf2, color=(0, 0, 125)):
 
     slope = (yf2-yf1)/(xf2-xf1)
     b = yf1 - slope*xf1
+    
     # print("yf = " + str(round(slope, 3)) + "*xf + " + str(round(b, 3)))
 
-    cv2.line(image, start_point, end_point, color, 4)
+    cv2.line(image, start_point, end_point, color, 1)
 
 def draw_box(image, xf1, yf1, w_box, h_box):
     w = image.shape[1]
@@ -46,25 +48,26 @@ def draw_box(image, xf1, yf1, w_box, h_box):
     return x1, y1, x2, y2
 
 def load_model(weight_path, device):
-    model = torch.load(weight_path, map_location=device)['model'].float().eval()
+    model = torch.load(weight_path, map_location=device)['model'].float().fuse().eval()
     if torch.cuda.is_available():
-        model.half().to(device)
+        model.to(device)
     return model
 
 def search_area(w, h, midx, midy):
     
-    # w = image.shape[1]
-    # h = image.shape[0]
     xf = midx/w
     yf = midy/h
     
-    x1s, x2s, x3s, x4s = 0.2, 0.29, 0.39, 0.44
-    x1aa, x2aa, x3aa, x4aa = 0.14, 0.4, 0.58, 0.73 
+    # 0.2, 0.29, 0.39, 0.44
+    x1s, x2s, x3s, x4s = shelf_area[0][0], shelf_area[1][0], shelf_area[2][0], shelf_area[3][0] 
     
-    yf1s = -1.211*xf + 0.672
-    yf2s = 4.0*xf + -1.36
-    yf3s = -1.6*xf + 1.104
-    yf4s = 2.333*xf + -0.037
+    # 0.14, 0.4, 0.58, 0.73 
+    x1aa, x2aa, x3aa, x4aa = attend_area[0][0], attend_area[1][0], attend_area[2][0], attend_area[3][0] 
+    
+    yf1s = -1.3*xf + 0.69
+    yf2s = 2.2*xf + -0.71
+    yf3s = -1.706*xf + 1.243
+    yf4s = 1.923*xf + 0.045
     
     yf1aa = -1.269*xf + 0.678
     yf2aa = 0.485*xf + -0.024
