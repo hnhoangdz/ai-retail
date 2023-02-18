@@ -3,7 +3,7 @@ class CLASSES:
     PERSON = {"id": 0, "label": "person"}
     OREO = {"id": 1, "label": "oreo_cake"}
     COFFEE = {"id": 2, "label": "coffee"}
-    CHILLI_SAUCE = {"id": 3, "label": "chinsu"}
+    CHINSU = {"id": 3, "label": "chinsu"}
     COCA = {"id": 4, "label": "coca"}
     FANTA = {"id": 5, "label": "fanta"}
     HAND = {"id": 6, "label": "hand"}
