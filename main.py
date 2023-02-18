@@ -124,7 +124,6 @@ class Behavior:
         
         return current_state
             
-
     def stolen(self):
         '''
            :))
@@ -225,7 +224,7 @@ class VideoRetailStore(object):
                 consecutive_frame_items.append(curr_frame_objs["items"])
                 
                 # 10 consecutive frames
-                if len(consecutive_frame_humans) == 11:
+                if len(consecutive_frame_humans) == 6:
                     consecutive_frame_humans.pop(0)
                     consecutive_frame_items.pop(0)
                 
