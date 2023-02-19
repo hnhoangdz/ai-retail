@@ -21,7 +21,7 @@ area_colors = {
 }
 
 COUNTER = 0
-CONSECUTIVE_FRAME = 1
+CONSECUTIVE_FRAME = 10
 
 class COLOR:
     red = (0,0,255)
