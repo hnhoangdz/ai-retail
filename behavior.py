@@ -37,9 +37,7 @@ class ByteTrackBehavior(Behavior):
         self.last_human_ids = last_human_ids
         
     def get_item(self):
-        
         status = {}     
-        
         # Iterate all humans id in current frame 
         # Check last frame
         for human_obj in self.consecutive_humans[-1]: 
@@ -74,7 +72,6 @@ class ByteTrackBehavior(Behavior):
                 # Iterate humans object in each frame
                 for human_obj in frame_humans:                 
                     if human_obj.id == last_human_obj.id:    
-                        print("vclllllllllllll ")
                         human_box = human_obj.box
                         midx, midy = human_box.center_point()
                         area = search_area(1920, 1080, midx, midy)
@@ -82,8 +79,6 @@ class ByteTrackBehavior(Behavior):
                         if not in_area:
                             break 
                         human_hands = human_obj.hands
-                        
-                        
                         for hand_obj in human_hands:
                             curr_item_obj = None
                             max_iou_hand = 0.0
@@ -103,9 +98,6 @@ class ByteTrackBehavior(Behavior):
             if not (in_area and is_touching):
                 status[last_human_obj]["items"] = []
         return status
-    
-    def put_item_to_shelf(self):
-        pass
 
     def bring_item_to_pay(self, current_state, items_on_shelf):
         for human in current_state:
@@ -116,11 +108,4 @@ class ByteTrackBehavior(Behavior):
                     on_store = item.cls_id in items_on_shelf
             current_state[human]["is_payed"] = on_store
         return current_state
-            
-
-    def stolen(self):
-        '''
-           :))
-        '''
-        pass
-
+        

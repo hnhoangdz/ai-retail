@@ -64,6 +64,11 @@ class Item(Object):
     def touch(self, item, thresh=0.01):
         self.iou_score = self.overlap_with(item)
         return True if self.iou_score >= thresh else False
+    
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, Item):
+            return NotImplemented
+        return self.cls_id == __o.cls_id
 
 class Hand(Object):
     def __init__(self, cls_id, box: Box, conf, id_person, frame_id) -> None:
@@ -79,4 +84,9 @@ class Human(Object):
         super().__init__(cls_id, box, conf, id, frame_id)
         self.id = id
         self.hands = hands
+    
+    # def __eq__(self, __o: object) -> bool:
+    #     if not isinstance(__o, Item):
+    #         return NotImplemented
+    #     return self.id == __o.id
 

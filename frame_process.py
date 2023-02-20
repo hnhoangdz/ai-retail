@@ -94,10 +94,10 @@ class Frame(object):
                     i_box = Box(Point(box[0], box[1]), Point(box[2], box[3]))
                     i_obj = Item(self.classes_id[i], i_box, box[4], frame_id=self.ith)
                     self.frame_objs["items"].append(i_obj)
-            for idx, box in enumerate(self.items_boxes):
-                cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (255, 0, 0), 2)
+            # for idx, box in enumerate(self.items_boxes):
+            #     cv2.rectangle(self.frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (255, 0, 0), 2)
                 
-    def tracking(self, input_size, aspect_ratio_thresh, min_box_area, visualize=True):
+    def tracking(self, input_size, aspect_ratio_thresh, min_box_area, visualize=False):
         
         if len(self.human_boxes) > 1:
             
@@ -169,26 +169,21 @@ class Frame(object):
                     p_obj = Human(0, p_box, online_scores[i], online_ids[i][0], hands_list, frame_id=self.ith)
                     
                     self.frame_objs["humans"].append(p_obj)
-            print("humannnnnnnnnn ", self.frame_objs["humans"])
     
     def whose_hand(self):
-        
         # Find hands belong to who
         self.hands_boxes = np.concatenate((self.hands_boxes, \
                                            np.array([[-1]*len(self.hands_boxes)]).T), \
                                            axis=1)
-
         count = {}
         for human_box in self.human_boxes:
             count[human_box[-1]] = 0
                 
         for i, hand_box in enumerate(self.hands_boxes):
-            
             tmp_id = -1
             tmp_overlap = 0.0
             
             for human_box in self.human_boxes:
-                
                 if count[human_box[-1]] == 2:
                     continue
                 
@@ -196,8 +191,7 @@ class Frame(object):
                 # print("overlap ", overlap_area)
                 if overlap_area > tmp_overlap:
                     tmp_overlap = overlap_area
-                    tmp_id = human_box[-1]
-                    
+                    tmp_id = human_box[-1]   
             self.hands_boxes[i][-1] = tmp_id
             if tmp_id != -1:
                 count[tmp_id] += 1
