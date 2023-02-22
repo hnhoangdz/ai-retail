@@ -176,7 +176,7 @@ class IDetect(nn.Module):
         return out
     
     def fuse(self):
-        print("IDetect.fuse")
+        # print("IDetect.fuse")
         # fuse ImplicitA and Convolution
         for i in range(len(self.m)):
             c1,c2,_,_ = self.m[i].weight.shape
@@ -692,7 +692,7 @@ class Model(nn.Module):
     #             print('%10.3g' % (m.w.detach().sigmoid() * 2))  # shortcut weights
 
     def fuse(self):  # fuse model Conv2d() + BatchNorm2d() layers
-        print('Fusing layers... ')
+        # print('Fusing layers... ')
         for m in self.model.modules():
             if isinstance(m, RepConv):
                 #print(f" fuse_repvgg_block")

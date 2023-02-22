@@ -12,10 +12,10 @@ from torchvision.ops import DeformConv2d
 from PIL import Image
 from torch.cuda import amp
 
-from utils.datasets import letterbox
-from utils.general import non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh
-from utils.plots import color_list, plot_one_box
-from utils.torch_utils import time_synchronized
+from detection.yolov7.utils.datasets import letterbox
+from detection.yolov7.utils.general import non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh
+from detection.yolov7.utils.plots import color_list, plot_one_box
+from detection.yolov7.utils.torch_utils import time_synchronized
 
 
 ##### basic ####
@@ -584,7 +584,7 @@ class RepConv(nn.Module):
     def fuse_repvgg_block(self):    
         if self.deploy:
             return
-        print(f"RepConv.fuse_repvgg_block")
+        # print(f"RepConv.fuse_repvgg_block")
                 
         self.rbr_dense = self.fuse_conv_bn(self.rbr_dense[0], self.rbr_dense[1])
         

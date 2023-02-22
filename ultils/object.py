@@ -1,14 +1,23 @@
 from typing import List, Dict
-from config.config_common import COLOR, object, CLASSES
+from config.config_common import COLOR, objects, CLASSES
 import cv2
+import os
 class Point:
     def __init__(self, x, y) -> None:
         self.x = x
         self.y = y
     
-    def inside(self, polygon:Polygon) -> bool:
+    def inside(self, polygon) -> bool:
         '''Validate point inside a polygon area'''
         return cv2.pointPolygonTest(contour=polygon.points, pt=(self.x, self.y), measureDist=True)
+
+
+class KeyPoint(Point):
+    def __init__(self, x, y, id:int, name:str, color:tuple) -> None:
+        super().__init__(x, y)
+        self._id = id
+        self.name = name
+        self.color = color
 
 
 class Box:
@@ -84,7 +93,7 @@ class Object:
         self.conf = conf # confidence of object
         self.local = None
     
-    def overlap_with(self, object:Object, thres=0.5) -> float:
+    def overlap_with(self, object, thres=0.5) -> float:
         # Compute S area 2 boxes
         S_self = (self.box.br.x - self.box.tl.x) * (self.box.br.y - self.box.tl.y)
         S_object = (object.box.br.x - object.box.tl.x)*(object.box.br.y - object.box.tl.y)
@@ -124,10 +133,28 @@ class Human(Object):
     def __init__(self, id, id_object, name_object, box: Box, conf, hands:List[Hand]) -> None:
         super().__init__(id, id_object, name_object, box, conf)
         self.id = id
-        self.id_object = CLASSES.PERSON
+        self.id_object = CLASSES.person
         self.hands = hands
 
 
+class Image:
+    def __init__(self, id, img, ratio) -> None:
+        if isinstance(img, str):
+            self.path = img
+            self.name = os.path.basename(img)
+            self.img = cv2.imread(img)
+        else:
+            self.img = img
+            self.path = None
+            self.name = None
+        self.id = id
+        self.shape = self.img.shape
+        self.width = self.shape[1]
+        self.height = self.shape[0]
+        self.channel = self.shape[2] if len(self.shape) > 2 else None
+        self.ratio = ratio
+
+        
 # if __name__ == "__main__":
     # pass
     

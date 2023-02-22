@@ -1,23 +1,14 @@
 
 import sys
 import torch
-from torchvision import transforms
-
-from byte_track.tracker.byte_tracker import BYTETracker
-from byte_track.tracking_utils.timer import Timer
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import os
 import time
-
-
-
-
-
-
+from typing import List, Dict
+from ultils.logger import set_logger
                                 
 def make_parser():
     parser = argparse.ArgumentParser("Retail Store Demo!")
@@ -51,6 +42,11 @@ def make_parser():
     parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
     parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="test mot20.")
     return parser
+
+
+def main():
+    args = make_parser().parse_args()
+
 
 
 if __name__ == "__main__":
