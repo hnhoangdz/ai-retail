@@ -1,0 +1,13 @@
+
+
+
+train: /home/ubuntu/vti_prj/ai-retail/data/hehe.v1i.yolov7pytorch/train
+val: /home/ubuntu/vti_prj/ai-retail/data/hehe.v1i.yolov7pytorch/valid
+# test: ./coco/test-dev2017.txt  
+
+# number of classes
+nc: 8
+
+# class names
+names: ['g7', 'nabaty', 'hop_xanh', 'haohao', 'mi_do', 'nescafe', 'mi_vang', 'cafe_trang']
+

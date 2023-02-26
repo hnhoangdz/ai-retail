@@ -1,7 +1,11 @@
+# TODO: Update with exact module version
+numpy<1.24
+torch>=1.7
 opencv_python
 loguru
 scikit-image
 tqdm
+torchvision>=0.10.0
 Pillow
 thop
 ninja
@@ -11,16 +15,9 @@ lap
 motmetrics
 filterpy
 h5py
-pyyaml
-cython_bbox
-ipdb
-seaborn
 
 # verified versions
-numpy<1.24.0
 onnx==1.8.1
 onnxruntime==1.8.0
 onnx-simplifier==0.3.5
-torch==1.13.1
-mediapipe==0.9.1.0
-torchvision>=0.10.0
+ultralytics

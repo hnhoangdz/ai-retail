@@ -18,11 +18,13 @@ from tracking.mmpose.mmpose.apis import (collect_multi_frames, get_track_id,
 from mmpose.core import Smoother
 from mmpose.datasets import DatasetInfo
 
-from config.config_common import CLASSES, COLOR, objects
-from ultils.object import Human, Hand, Item, Box, Point, Image
+
+from config.config_common import CLASSES, COLOR, objects, Visualization
+from ultils.object import Human, Hand, Item, Box, Point, Image, KeyPoint
 from config.config_detection import YoloConfig
 from ultils.preprocess import Yolov7Detector, load_model
 from ultils.logger import set_logger
+from ultils.common import visual_area
 from config.config_detection import PoseConfig
 level = logging.DEBUG
 logger = set_logger(level=level)
@@ -34,7 +36,6 @@ def object_to_box(dets:List[Human]) -> tuple:
         conved = {'bbox':[each_det.box.tl.x, each_det.box.tl.y, each_det.box.br.x, each_det.box.br.y, each_det.conf]}
         results.append(conved)
     return results
-
 
 def make_parser():
     """Visualize the demo images.
@@ -142,7 +143,7 @@ def tracking():
         save_out_video = True
 
     if save_out_video:
-        fps = video.fps*2.5
+        fps = video.fps*2
         size = (video.width, video.height)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         videoWriter = cv2.VideoWriter(
@@ -178,11 +179,12 @@ def tracking():
     print('Running inference...')
     for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
         start_time = time.time()
-        pose_results_last = pose_results
+        image = Image(id=None, img=cur_frame, ratio=1)
 
+        pose_results_last = pose_results
         # get the detection results of current frame
         # the resulting box is (x1, y1, x2, y2)
-        result_dets, fps_det = det_model.detect(cur_frame)
+        result_dets, fps_det = det_model.detect(image.img)
         humans, hands, items = [], [], []
         for det in result_dets:
             if det.id_object == CLASSES.hand:
@@ -200,7 +202,7 @@ def tracking():
         # test a single image, with a list of bboxes.
         pose_results, _ = inference_top_down_pose_model(
             pose_model,
-            frames if args.use_multi_frames else cur_frame,
+            image.img if args.use_multi_frames else image.img,
             humans_bbox,
             bbox_thr=args.bbox_thr,
             format='xyxy',
@@ -222,7 +224,95 @@ def tracking():
             pose_results = smoother.smooth(pose_results)
         end_time = time.time()
         logger.debug(f"FPS:{round(1/(end_time-start_time), 3)}")
-     
+        if Visualization.allow_visual_area:
+            # visualize areas
+            visual_area(image=image)
+        # CONVERT POSE TO HUMAN OBJECT
+        all_humans = []
+        for each_human in pose_results:
+            # convert list bbox to Box object
+            bbox = Box(tl=Point(x=each_human['bbox'][0], y=each_human['bbox'][1]),
+                        br=Point(x=each_human['bbox'][2], y=each_human['bbox'][3]))
+
+            human_obj = Human(
+                track_id=each_human['track_id'],
+                id_object=CLASSES.person,
+                name_object=objects[CLASSES.person],
+                box=bbox,
+                conf=each_human['bbox'][-1]
+            )
+            human_obj.area = each_human['area']
+            for i, kp in enumerate(each_human['keypoints'].tolist()):
+                # collect left_hand_keypoints
+                for id_pose in  PoseConfig.id_pose_lefthand:
+                    # get id pose in each_human fit pose left hand 
+                    if i == id_pose:
+                        meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                        each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                            conf=kp[2], id_=i, 
+                                            name=meta_one_point['name'],
+                                            color=meta_one_point['color'],
+                                            type_=meta_one_point['type'],
+                                            swap=meta_one_point['swap'])
+                        human_obj.left_hand_kp.append(each_pose)
+
+                # collect right_hand_keypoints
+                for id_pose in  PoseConfig.id_pose_righthand:
+                    # get id pose in each_human fit pose right hand 
+                    if i == id_pose:
+                        meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                        each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                            conf=kp[2], id_=i, 
+                                            name=meta_one_point['name'],
+                                            color=meta_one_point['color'],
+                                            type_=meta_one_point['type'],
+                                            swap=meta_one_point['swap'])
+                        human_obj.right_hand_kp.append(each_pose)
+
+                # collect right_leg_keypoints
+                for id_pose in  PoseConfig.id_pose_rightleg:
+                    # get id pose in each_human fit pose right leg 
+                    if i == id_pose:
+                        meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                        each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                            conf=kp[2], id_=i, 
+                                            name=meta_one_point['name'],
+                                            color=meta_one_point['color'],
+                                            type_=meta_one_point['type'],
+                                            swap=meta_one_point['swap'])
+                        human_obj.right_leg_kp.append(each_pose)
+                
+                # collect left_leg_keypoints
+                for id_pose in  PoseConfig.id_pose_leftleg:
+                    # get id pose in each_human fit pose left leg 
+                    if i == id_pose:
+                        meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                        each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                            conf=kp[2], id_=i, 
+                                            name=meta_one_point['name'],
+                                            color=meta_one_point['color'],
+                                            type_=meta_one_point['type'],
+                                            swap=meta_one_point['swap'])
+                        human_obj.left_leg_kp.append(each_pose)
+                    
+            all_humans.append(human_obj)
+        
+        if Visualization.visual_box_human:
+            for human in all_humans:
+                human.visual(image.img, label=f"{human.track_id}")
+            
+
+
+        # import ipdb; ipdb.set_trace()
+        # TODO: 1. Dinh nghia pose tay, chan cho Human ok
+        #     2. Visual lize pose tay, chan cho nguoi ok
+        #     3. Chia vung ke hang, thanh toan, vung chung ok
+        #     4. Viet code logic cho tay cam hang va mang ra thanh toan 
+        #     5. Thu alpha pose xem co doi id hay va toc do co anh hon khong
+        #     6. Chon 1 model
+        #     7. train yolov8 detector
+        #     8. Viet inference yolov8
+        #     9. Ghep vao code thay yolov7
 
 
 
@@ -231,22 +321,23 @@ def tracking():
 
 
 
-        # show the results
-        vis_frame = vis_pose_tracking_result(
-            pose_model,
-            cur_frame,
-            pose_results,
-            radius=args.radius,
-            thickness=args.thickness,
-            dataset=dataset,
-            dataset_info=dataset_info,
-            kpt_score_thr=args.kpt_thr,
-            show=False)
+        # visual pose
+        if Visualization.visual_pose:
+            vis_frame = vis_pose_tracking_result(
+                pose_model,
+                cur_frame,
+                pose_results,
+                radius=args.radius,
+                thickness=args.thickness,
+                dataset=dataset,
+                dataset_info=dataset_info,
+                kpt_score_thr=args.kpt_thr,
+                show=False)
         if args.show:
             cv2.imshow('Frame', vis_frame)
 
         if save_out_video:
-            videoWriter.write(vis_frame)
+            videoWriter.write(image.img)
 
         if args.show and cv2.waitKey(1) & 0xFF == ord('q'):
             break

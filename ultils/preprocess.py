@@ -16,11 +16,12 @@ from detection.yolov7.utils.datasets import letterbox
 from ultils.object import Human, Hand, Item, Box, Point, Image
 from ultils.logger import set_logger
 from config.config_common import CLASSES, objects
-from config.config_detection import YoloConfig
+from ultralytics import YOLO
+from config.config_detection import Yolov8Config, Yolov7Config
 
 
-# level = logging.NOTSET
-# logger = set_logger(level=level)
+level = logging.NOTSET
+logger = set_logger(level=level)
 
 class Detector:
     '''
@@ -31,7 +32,7 @@ class Detector:
     '''
     def __init__(self, model, device) -> None:
         self.device = device
-        self.model = model.to(device)
+        self.model = model
 
     def preprocess_input(self, inputs):
         '''
@@ -90,7 +91,7 @@ class Yolov7Detector(Detector):
     def preprocess_output(self, det, original_img) -> List:
         img = self.preprocess_input(original_img)
         pred = det[0]
-        pred = non_max_suppression(pred, YoloConfig.conf_thres, YoloConfig.iou_thres, YoloConfig.classes, YoloConfig.agnostic)
+        pred = non_max_suppression(pred, Yolov7Config.conf_thres, Yolov7Config.iou_thres, Yolov7Config.classes, Yolov7Config.agnostic)
         results_det = pred[0]
         if results_det is not None and len(results_det):
             results_det[:, :4] = scale_coords(img.shape[2:], results_det[:, :4], original_img.shape).round()
@@ -98,44 +99,58 @@ class Yolov7Detector(Detector):
         # convert to object classification Human, Hand, remaining Items
         result_final = []
         for det in results_det.tolist():
-            if det[5] == CLASSES.person:
-                tl = Point(x=det[0], y=det[1])
-                br = Point(x=det[2], y=det[3])
-                result_final.append(
-                    Human(
-                        id=None,
-                        id_object=CLASSES.person,
-                        name_object=objects[CLASSES.person],
-                        box=Box(tl=tl, br=br),
-                        conf=det[4],
-                        hands=[]
-                        )
-                    )
-            elif det[5] == CLASSES.hand:
-                tl = Point(x=det[0], y=det[1])
-                br = Point(x=det[2], y=det[3])
-                result_final.append(
-                    Hand(
-                        id=None,
-                        id_object=CLASSES.hand,
-                        name_object=objects[CLASSES.hand],
-                        box=Box(tl=tl, br=br),
-                        conf=det[4],
-                        id_person=None
+            tl = Point(x=det[0], y=det[1])
+            br = Point(x=det[2], y=det[3])
+            result_final.append(
+                Item(
+                    id=None,
+                    id_object=str(int(det[-1])),
+                    name_object=objects[int(str(int(det[-1])))],
+                    box=Box(tl=tl, br=br),
+                    conf=det[4],
+                    # hands=[]
                     )
                 )
-            else:
-                tl = Point(x=det[0], y=det[1])
-                br = Point(x=det[2], y=det[3])
-                result_final.append(
-                    Item(
-                        id=None, 
-                        id_object=int(det[5]),
-                        name_object=objects[int(det[5])],
-                        box=Box(tl=tl, br=br),
-                        conf=det[4]
-                    )
-                )
+
+        # for det in results_det.tolist():
+        #     if det[5] == CLASSES.person:
+        #         tl = Point(x=det[0], y=det[1])
+        #         br = Point(x=det[2], y=det[3])
+        #         result_final.append(
+        #             Human(
+        #                 track_id=None,
+        #                 id_object=CLASSES.person,
+        #                 name_object=objects[CLASSES.person],
+        #                 box=Box(tl=tl, br=br),
+        #                 conf=det[4],
+        #                 # hands=[]
+        #                 )
+        #             )
+        #     elif det[5] == CLASSES.hand:
+        #         tl = Point(x=det[0], y=det[1])
+        #         br = Point(x=det[2], y=det[3])
+        #         result_final.append(
+        #             Hand(
+        #                 id=None,
+        #                 id_object=CLASSES.hand,
+        #                 name_object=objects[CLASSES.hand],
+        #                 box=Box(tl=tl, br=br),
+        #                 conf=det[4],
+        #                 id_person=None
+        #             )
+        #         )
+        #     else:
+        #         tl = Point(x=det[0], y=det[1])
+        #         br = Point(x=det[2], y=det[3])
+        #         result_final.append(
+        #             Item(
+        #                 id=None, 
+        #                 id_object=int(det[5]),
+        #                 name_object=objects[int(det[5])],
+        #                 box=Box(tl=tl, br=br),
+        #                 conf=det[4]
+        #             )
+        #         )
         # Clear result unnecessary
         del results_det
         pred.clear()
@@ -147,14 +162,58 @@ def load_model(weight_path, device):
         model.to(device)
     return model
 
+
+
+class Yolov8Detector(Detector):
+    def __init__(self, model, device) -> None:
+        super().__init__(model, device)
+    
+    def preprocess_output(self, det, img_original: Image) -> List:
+        result = []
+        for each in det:
+            try: 
+                result.append({
+                    'bbox': each.boxes.boxes.tolist()[0],
+                    'xyxy': each.boxes.xyxy.tolist()[0],
+                    'xyxyn': each.boxes.xyxyn.tolist()[0],
+                    'xywh': each.boxes.xywh.tolist()[0],
+                    'xywhn': each.boxes.xywhn.tolist()[0],
+                    'cls': int(each.boxes.cls.tolist()[0]),
+                    'conf':each.boxes.conf.tolist()[0],
+                    'orig_shape': each.boxes.orig_shape.tolist()
+                })
+            except:
+                logger.debug('No object detected!')
+        return result
+    
+    def detect(self, img):
+        img_cp = img.copy()
+        img_cp = self.preprocess_input(inputs=img_cp)
+        start_time = time.time()
+        dets = self.model.predict(source=img_cp,
+                                classes=Yolov8Config.classes,
+                                conf=Yolov8Config.conf_thres,
+                                iou=Yolov8Config.iou_thres,
+                                device=Yolov8Config.device,
+                                )
+        end_time = time.time()
+        fps = round(1/(end_time-start_time), 3)
+        dets = self.preprocess_output(dets, img)
+        return dets, fps
+        
+
+
+
 if __name__ == "__main__":
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model_detect = load_model(weight_path=YoloConfig.weight_path, device=device)
-    model_detect = Yolov7Detector(model=model_detect, device=device)
+    # model_detect = load_model(weight_path=YoloConfig.weight_path, device=device)
+    model = YOLO(Yolov8Config.weight_path)
+    model_detect = Yolov8Detector(model=model, device=device)
+
     
     # image = cv2.imread('/home/ubuntu/Pictures/download.jpeg')
-    image = Image(id=0, img='/home/ubuntu/Pictures/download.jpeg', ratio=1)
+    image = Image(id=0, img='/home/ubuntu/vti_prj/ai-retail/data/sample.png', ratio=1)
     image_core = image.img
     result_dets = model_detect.detect(image_core)
     print(result_dets)

@@ -1,23 +1,18 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from config.config_common import COLOR, objects, CLASSES
 import cv2
+import numpy as np
 import os
+from keypoint import keypoint_definition
+
 class Point:
     def __init__(self, x, y) -> None:
-        self.x = x
-        self.y = y
+        self.x = int(x)
+        self.y = int(y)
     
     def inside(self, polygon) -> bool:
         '''Validate point inside a polygon area'''
         return cv2.pointPolygonTest(contour=polygon.points, pt=(self.x, self.y), measureDist=True)
-
-
-class KeyPoint(Point):
-    def __init__(self, x, y, id:int, name:str, color:tuple) -> None:
-        super().__init__(x, y)
-        self._id = id
-        self.name = name
-        self.color = color
 
 
 class Box:
@@ -66,12 +61,13 @@ class Box:
 
 class Polygon():
     def __init__(self, points:List[Point]) -> None:
-        self.points = [(pt.x, pt.y) for pt in self.points]
+        self.points = [(pt.x, pt.y) for pt in points]
     
-    def draw_polygon_in(self, image, color:tuple=COLOR.yellow, thickness:int=1, label:str='') -> None:
+    def draw(self, image:np.array, color:tuple=COLOR.yellow, thickness:int=1, label:str='') -> None:
         '''draw polygon in frame'''
         # drawing...
-        cv2.polylines(image=image, pts=self.points, color=color, thickness=thickness, isClosed=True)
+        points = np.array(self.points)
+        cv2.polylines(img=image, pts=[points], isClosed=True, color=color, thickness=thickness)
         
         # draw_label
         top_point = min(self.points, key=lambda x:x[1])
@@ -113,6 +109,24 @@ class Object:
         union_area = S_self + S_object - intersection_area
         Iou = intersection_area/union_area
         return Iou
+    
+    
+
+    def visual(self, image:np.array, color=COLOR.blue, thickness=2, label:str=''):
+        cv2.rectangle(image,
+                    (self.box.tl.x, self.box.tl.y),
+                    (self.box.br.x, self.box.br.y),
+                    color=color,
+                    thickness=thickness
+                    )
+        cv2.putText(image, label,
+                (self.box.tl.x, self.box.br.y-15),
+                fontScale = 0.8,
+                color=color,
+                thickness=thickness,
+                fontFace=cv2.LINE_AA
+                )
+
 
 class Item(Object):
     def __init__(self, id, id_object, name_object, box: Box, conf) -> None:
@@ -130,11 +144,70 @@ class Hand(Object):
 
 
 class Human(Object):
-    def __init__(self, id, id_object, name_object, box: Box, conf, hands:List[Hand]) -> None:
+    def __init__(self, track_id, id_object, name_object, box: Box, conf) -> None:
         super().__init__(id, id_object, name_object, box, conf)
-        self.id = id
+        self.track_id = track_id
         self.id_object = CLASSES.person
-        self.hands = hands
+        self.left_hand_kp = []
+        self.right_hand_kp = []
+        self.left_leg_kp = []
+        self.right_leg_kp = []
+        self.area = None
+    
+    def hold(self, item:Item, thres:float) -> List[Item]:
+        item_held = []
+        l_cnt = 0
+        for kp_left_hand in self.left_hand_kp:
+            if kp_left_hand.in_box(item.box):
+                l_cnt += 1
+        
+        r_cnt = 0
+        for kp_right_hand in self.right_hand_kp:
+            if kp_right_hand.in_box(item.box):
+                r_cnt += 1
+        
+        if l_cnt/len(self.left_hand_kp)>=thres or r_cnt/len(self.right_hand_kp)>=thres:
+            for item_held in item_held:
+                if item_held.box.tl.x != item.box.tl.x:
+                    item_held.append(item)
+
+        return item_held
+
+
+    
+    def visual(self, image: np.array, color=COLOR.blue, thickness=2, label: str = ''):
+        const_edge_len = 50
+        # top left
+        cv2.line(image, 
+                (self.box.tl.x, self.box.tl.y), 
+                (self.box.tl.x, self.box.tl.y + const_edge_len), 
+                color, thickness) 
+
+        cv2.line(image, 
+                (self.box.tl.x, self.box.tl.y),
+                (self.box.tl.x + const_edge_len, self.box.tl.y),
+                color, thickness) 
+
+        # bottom_right
+        cv2.line(image, 
+                (self.box.br.x, self.box.br.y),
+                (self.box.br.x - const_edge_len, self.box.br.y),
+                color, thickness) 
+        
+        cv2.line(image, 
+                (self.box.br.x, self.box.br.y),
+                (self.box.br.x, self.box.br.y - const_edge_len),
+                color, thickness) 
+        # visual Label
+        # import ipdb; ipdb.set_trace()
+        cv2.putText(image, label,
+                    (self.box.tl.x, self.box.tl.y-15),
+                    fontScale = 0.8,
+                    color=color,
+                    thickness=thickness,
+                    fontFace=cv2.LINE_AA
+                    )
+        
 
 
 class Image:
@@ -153,6 +226,31 @@ class Image:
         self.height = self.shape[0]
         self.channel = self.shape[2] if len(self.shape) > 2 else None
         self.ratio = ratio
+
+    def has_area(self, ratio_points:Tuple) -> Polygon:
+        real_point_obj = []
+        for each in ratio_points:
+            x_real = each[0] * self.width
+            y_real = each[1] * self.height
+            real_point_obj.append(Point(x=x_real, y=y_real))
+        return Polygon(points=real_point_obj)
+
+
+class KeyPoint(Point):
+    def __init__(self, x, y, conf:float, id_:int, name:str, color:tuple, type_:str, swap:str) -> None:
+        super().__init__(x, y)
+        self.conf = conf
+        self._id = id_
+        self.name = name
+        self.color = color
+        self.type = type_
+        self.swap = swap
+
+    def in_box(self, box:Box) -> bool:
+        return self.x > box.tl.x and self.y > box.tl.y and self.x < box.br.x and box.br.y
+
+
+
 
         
 # if __name__ == "__main__":
