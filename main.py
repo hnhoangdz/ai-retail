@@ -1,5 +1,5 @@
 from behavior import ByteTrackBehavior
-from ultils.visualize import visualize_human, visualize_item, visual_object
+from ultils.visualize import visualize_human, visualize_item, visual_object, visualize_payment
 from frame_process import Frame
 from cfg import *
 from helpers import draw_box, draw_line, load_model, bbox_to_center, search_area
@@ -17,6 +17,7 @@ from yolov7.detect_inf import obj_detector
 from torchvision import transforms
 import torch
 import sys
+
 sys.path.insert(0, './yolov7')
 from cfg import *
 
@@ -25,6 +26,11 @@ class VideoRetailStore(object):
         self.args = args
         self.device = select_device(args.device)
         self.half = self.device.type != 'cpu'
+        # Detection
+        self.human_detector = load_model(args.weights_human, device)
+        self.hands_items_detector = load_model(args.weights_hands_items, device)
+        # Tracking
+        self.tracker = BYTETracker(args)
         if args.cam != -1:
             print("Using webcam " + str(args.cam))
             self.video = cv2.VideoCapture(args.cam)
@@ -57,7 +63,7 @@ class VideoRetailStore(object):
             # create video writer
             fourcc = cv2.VideoWriter_fourcc(*self.args.fourcc)
             self.writer = cv2.VideoWriter(self.save_video_path, fourcc,
-                                          self.video.get(cv2.CAP_PROP_FPS), (self.im_width, self.im_height))
+                                          self.video.get(cv2.CAP_PROP_FPS), (1920, 1080))
             print('Done. Create output file ', self.save_video_path)
         return self
 
@@ -72,31 +78,36 @@ class VideoRetailStore(object):
         ith = 0
         consecutive_frame_humans = []
         consecutive_frame_items = []
-        items_on_shelf = None
-        last_human_ids = None
+        attend_storage = {}
+        payment_storage = {}
+        trace_area = {}
+        payment_frame = np.zeros([1080, 1920//4, 3], dtype=np.uint8)
+        payment_frame[:, :] = [255, 255, 255]
+
         while True:
             start_time = time.time()
             ret, frame = self.video.read()
+
             if not ret:
                 print("error when reading camera")
-                break            
+                break      
+            print("ith ", ith)
+            frame = cv2.resize(frame, (1920, 1080))
             # Init frame object
-            frame_process = Frame(ith, frame, detector,
-                                  tracker, display_area=True)
+            frame_process = Frame(ith, frame, self.human_detector, self.hands_items_detector,
+                                    self.tracker, display_area=True)
             # Frame detection
             frame_process.detect(args.conf_thresh, args.iou_thresh, device)
+
             # If there are detected objects
             if frame_process.is_detected:
-                # Return id of items that appeared first on shelf
-                if items_on_shelf is None:
-                    items_on_shelf = frame_process.get_items_on_shelf()
+
                 # Tracking humans
                 frame_process.tracking(args.input_size, args.aspect_ratio_thresh, args.min_box_area)
 
                 # Get all objects apprearing in current frame
                 # Return a dictionary, contains humans & items object
                 curr_frame_objs = frame_process.frame_objs
-                last_human_ids = [human_obj.id for human_obj in curr_frame_objs["humans"]]
 
                 # Append all objects to list in current frame
                 consecutive_frame_humans.append(curr_frame_objs["humans"])
@@ -109,85 +120,130 @@ class VideoRetailStore(object):
 
                 # Get behavior of human
                 if ith >= 10:
-                    behavior = ByteTrackBehavior(consecutive_frame_humans, consecutive_frame_items, last_human_ids)
-                    # print("last_human_ids ", last_human_ids)
+
+                    behavior = ByteTrackBehavior(consecutive_frame_humans, consecutive_frame_items)
                     current_state = behavior.get_item()
-                    current_state = behavior.bring_item_to_pay(current_state, items_on_shelf)
+
+                    # Attend storage
+                    for current_state_key, current_state_values in current_state.items():
+                        human_id = current_state_key.id
+                        area = current_state_values["area"]
+                        items = current_state_values["items"]
+                        
+                        if human_id not in trace_area:
+                            trace_area[human_id] = [area]
+                        else:
+                            if area not in trace_area[human_id]:
+                                trace_area[human_id].append(area)
+
+                        if (area == "attend"):
+                            if (len(items) > 0):
+                                if trace_area[human_id][len(trace_area[human_id])-1] != "payment":
+                                    if human_id not in attend_storage:
+                                        attend_storage[human_id] = items
+                                    else:
+                                        # if len(attend_storage[human_id]) > 1:
+                                        #     continue
+                                        attend_items = [i.cls_id for i in attend_storage[human_id]]
+                                        for item_obj in items:
+                                            if item_obj.cls_id not in attend_items:
+                                                if len(attend_storage[human_id]) == 2:
+                                                    break
+                                                attend_storage[human_id].append(item_obj)
+                    print("before attend_storage ", attend_storage)
+                    current_state, attend_storage, payment_storage = behavior.bring_item_to_pay(current_state, attend_storage, payment_storage)
+                    print("after attend_storage ", attend_storage)
+                    print("payment_storage ", payment_storage)
                     print("=============================================")
-                    # visualization
+                    # Visualization
                     x_text_start = 5
                     y_text_start = 130
                     for human, meta_data in current_state.items():
+                        
+                        human_id = human.id
                         area = meta_data['area']
                         items = meta_data['items']
-                        payed = meta_data['is_payed']
+                        
+                        if area == "shelf":
+                            color_human = COLOR.blue
+                            color_item = COLOR.blue
+                        elif area == "attend":
+                            color_human = COLOR.magenta
+                            color_item = COLOR.magenta
+                        elif area == "payment":
+                            color_human = COLOR.green
+                            color_item = COLOR.green
+                        else:
+                            continue
+                        
+                        cv2.putText(frame, f"person {human_id}:", (x_text_start, y_text_start), 
+                                    cv2.FONT_HERSHEY_COMPLEX, 0.7, color_human)
+                        
+                        x_start_item = x_text_start + 120
+                        
                         visualize_human(human,
                                         image=frame,
-                                        color=COLOR.blue,
+                                        color=color_human,
                                         thickness=2,
-                                        label=f"{classes[human.cls_id]}: {human.id}",
+                                        label=f"person: {human.id}",
+                                        area=area
                                         )
-                        cv2.putText(frame, f"person {human.id}:", (
-                            x_text_start, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.green)
-                        x_start_item = x_text_start + 120
-
-                        if len(items) != 0:
-                            # define box color
-                            # color_item = COLOR.yellow if payed == True else COLOR.magenta
-                            if area == "payment":
-                                color_item = COLOR.green
-                            elif area == "attend":
-                                color_item = COLOR.magenta
-                            # elif area == "shelf":
-                            #     color_item = COLOR.red
-                            else:
-                                continue
-                            
-                            # check area location
-                            # if human not in hold_human:
-                            #     hold_items.clear()
+                        if area == "attend":
+                            if human_id in attend_storage:
+                                for item in attend_storage[human_id]:
+                                    cv2.putText(frame, f"{classes[item.cls_id]}    ", 
+                                            (x_start_item, y_text_start), 
+                                            cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
+                                    x_start_item += 80
+                        elif area == "shelf":
                             for item in items:
-                                visualize_item(
-                                    item,
-                                    frame,
-                                    color=color_item,
-                                    thickness=2,
-                                    label=classes[item.cls_id]
-                                )
-                                cv2.putText(frame, f"{classes[item.cls_id]}, ", (x_start_item, y_text_start), cv2.FONT_HERSHEY_COMPLEX, 0.7, COLOR.magenta)
+                                cv2.putText(frame, f"{classes[item.cls_id]}    ", 
+                                            (x_start_item, y_text_start), 
+                                            cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
                                 x_start_item += 80
-                        y_text_start += 30
+                        elif area == "payment":
+                            for item in items:
+                                cv2.putText(frame, f"{classes[item.cls_id]}    ", 
+                                            (x_start_item, y_text_start), 
+                                            cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
+                                x_start_item += 80
+                        y_text_start += 20
+
             else:
                 consecutive_frame_humans = []
                 consecutive_frame_items = []
 
-            # Display FPS
+            
+            ith += 1
 
+            # Display FPS
             end_time = time.time()
             fps = 1/(end_time - start_time)
             cv2.putText(frame, "FPS : {}".format(int(fps)), (5, 30),
                         cv2.FONT_HERSHEY_COMPLEX, 1, COLOR.green)
-            ith += 1
-            cv2.imwrite("visualization_image.jpg", frame)
-
-            if self.args.display:
-                cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
-                cv2.imshow("", frame)
-                if cv2.waitKey(1) == ord('q'):  # q to quit
-                    cv2.destroyAllWindows()
-                    break
+            cv2.namedWindow("Retail", cv2.WINDOW_KEEPRATIO)
+            retail_frame = cv2.resize(frame, (1920*3//4, 1080))
+            visualize_payment(payment_frame, payment_storage)
+            final_frame = np.concatenate((retail_frame, payment_frame), 1)
+            cv2.imwrite("visualization_image.jpg", final_frame)
+            cv2.imshow("Retail", final_frame)
+            if cv2.waitKey(1) == ord('q'):  # q to quit
+                cv2.destroyAllWindows()
+                break
 
             if self.args.save_path:
-                self.writer.write(frame)
+                self.writer.write(final_frame)
 
 
 def get_parser():
+
     parser = argparse.ArgumentParser("Retail Store Demo!")
 
     # Detection
-    parser.add_argument("--weights_path", type=str,
-                        default="./weights/best.pt")
-    # parser.add_argument("--weights_item", type=str, default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/item_detector.pt")
+    parser.add_argument("--weights_human", type=str,
+                        default="./yolov7/trained_models/yolov7.pt")
+    parser.add_argument("--weights_hands_items", type=str, 
+                        default="./yolov7/trained_models/best.pt")
     parser.add_argument("--conf_thresh", type=float, default=0.45,
                         help="confidence threshold object detection")
     parser.add_argument("--iou_thresh", type=float, default=0.3,
@@ -197,7 +253,7 @@ def get_parser():
 
     # Input and ouput
     parser.add_argument("--input_path", type=str,
-                        default="/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/output.avi", help="input video")
+                        default="./videos/cut_p1.avi", help="input video")
     parser.add_argument("--save_path", type=str,
                         default="./results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v",
@@ -213,11 +269,11 @@ def get_parser():
     parser.add_argument("--input_size", type=tuple,
                         default=(800, 1440), help="input size image in tracker")
     parser.add_argument("--track_thresh", type=float,
-                        default=0.3, help="tracking confidence threshold")
-    parser.add_argument("--track_buffer", type=int, default=30,
+                        default=0.6, help="tracking confidence threshold")
+    parser.add_argument("--track_buffer", type=int, default=40,
                         help="the frames for keep lost tracks")
     parser.add_argument("--match_thresh", type=float,
-                        default=0.45, help="matching threshold for tracking")
+                        default=0.6, help="matching threshold for tracking")
     parser.add_argument(
         "--aspect_ratio_thresh", type=float, default=1.0,
         help="threshold for filtering out boxes of which aspect ratio are above the given value."
@@ -233,10 +289,6 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Devide:{device}")
     args = get_parser().parse_args()
-    # Detection
-    detector = load_model(args.weights_path, device)
-    # item_detector = load_model(args.weights_item, device)
-    # Tracking
-    tracker = BYTETracker(args)
+    
     with VideoRetailStore(args) as vidRS:
         vidRS.run()
