@@ -50,7 +50,7 @@ def draw_box(image, xf1, yf1, w_box, h_box):
 def load_model(weight_path, device):
     model = torch.load(weight_path, map_location=device)['model'].float().fuse().eval()
     if torch.cuda.is_available():
-        model.to(device)
+        model.half().to(device)
     return model
 
 def search_area(w, h, midx, midy):
@@ -58,44 +58,69 @@ def search_area(w, h, midx, midy):
     xf = midx/w
     yf = midy/h
     
-    # 0.2, 0.29, 0.39, 0.44
-    x1s, x2s, x3s, x4s = shelf_area[0][0], shelf_area[1][0], shelf_area[2][0], shelf_area[3][0] 
+    # Shelf x
+    x1s, x2s = shelf_area[0][0], shelf_area[1][0] 
     
-    # 0.14, 0.4, 0.58, 0.73 
-    x1aa, x2aa, x3aa, x4aa = attend_area[0][0], attend_area[1][0], attend_area[2][0], attend_area[3][0] 
+    # In-out x 
+    x1io, x2io = in_out_area[0][0], in_out_area[1][0]
     
-    yf1s = -1.3*xf + 0.69
-    yf2s = 2.2*xf + -0.71
-    yf3s = -1.706*xf + 1.243
-    yf4s = 1.923*xf + 0.045
+    # Payment x
+    x1p, x2p, x3p, x4p = payment_area[0][0], payment_area[1][0], payment_area[2][0], payment_area[1][0]
     
-    yf1aa = -1.269*xf + 0.678
-    yf2aa = 0.485*xf + -0.024
-    yf3aa = -4.267*xf + 3.445
-    yf4aa = 1.068*xf + 0.35
+    # In-out
+    yfio = 2.267*xf + -1.173
+    # Shelf
+    yfs = 4.46*xf + -1.66
+
+    # Payment
+    yfp1 = -0.22*xf + 0.802
+    yfp2 = 2.935*xf + -1.564
+    yfp3 = -0.538*xf + 1.308
+    yfp4 = 3.214*xf + -1.259
+
+    # cv2.circle(image, (int(midx), int(midy)), 5, (0,255,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfio*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfs*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfp1*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfp2*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfp3*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+    # cv2.circle(image, (int(midx), int(yfp4*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
+
+    area = ""
+    if x1s < xf < x2s:
+        if yf > yfs:
+            area = "shelf"
+        else:
+            area = "attend"
+    elif xf > x2s:
+        if yf < yfs:
+            area = "attend"
     
-    # cv2.circle(image, (int(midx), int(midy)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf1s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf2s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf3s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf4s*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf1aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf2aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf3aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    # cv2.circle(image, (int(midx), int(yf4aa*h)), 5, (255,0,0), 5, cv2.INTER_LINEAR)
-    
-    if x1aa <= xf <= x3aa:
-        if x1s <= xf <= x3s:
-            if yf < yf1s:
-                return "outside"
-            elif yf2s <= yf <= yf4s:
-                return "shelf"
-        if yf2aa <= yf <= yf4aa:
-            return "attend"
-    elif xf > x3aa:
-        if yf > yf3aa:
-            return "payment"
-    return "outside"
+    if xf < x1io:
+        if yf < yfio:
+            area = "outside"
+    elif xf < x2io:
+        if yf < yfio:
+            area = "outside"
+        else:
+            area = "attend"
+    else:
+        if yf > yfio:
+            area = "attend"
+        else:
+            area = "outside"
+        
+    if x1p < xf < x2p:
+        if yfp1 < yf:
+            if (yf < yfp4) or (yf < yfp3):
+                area = "payment"
+            
+    elif x4p < xf < x3p:
+        if yfp1 < yf:
+            if (yf < yfp3) or (yfp2 < yf < yfp3):
+                area = "payment"
+
+    return area
 
 def writes_area_text(image, text, xf1, yf1):
     w = image.shape[1]
