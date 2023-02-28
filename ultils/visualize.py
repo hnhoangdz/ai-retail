@@ -3,9 +3,9 @@ from helpers import draw_line
 import cv2
 from typing import Dict, List
 from cfg import COLOR, classes
+import cfg
 
-
-def visualize_human(human:Human, image, color:tuple, thickness, label):
+def visualize_human(human:Human, image, color:tuple, thickness, label, area):
     # visual Box
     const_edge_len = 50
     # top left
@@ -33,6 +33,13 @@ def visualize_human(human:Human, image, color:tuple, thickness, label):
     # import ipdb; ipdb.set_trace()
     cv2.putText(image, label,
                 (human.box.top_left.x, human.box.top_left.y-15),
+                fontScale = 0.8,
+                color=color,
+                thickness=thickness,
+                fontFace=cv2.LINE_AA
+                )
+    cv2.putText(image, area,
+                (human.box.top_left.x + 200, human.box.top_left.y-15),
                 fontScale = 0.8,
                 color=color,
                 thickness=thickness,
@@ -78,15 +85,24 @@ def visual_object(input:dict, image):
                         label=classes[input.keys().id],
                     )
 
-    # else:
-    #     import ipdb; ipdb.set_trace()
-    #     color = COLOR.magenta if input.values() == 'pay' else COLOR.yellow
-    #     visualize_item(input.keys(), 
-    #                         image=image, 
-    #                         color=color,
-    #                         thickness=1,
-    #                         label=classes[input.keys().id],
-    #                     )
+def visualize_payment(image, payment_storage):
+    title = "****PAYMENT****"
+    x_start_human = 10
+    y_start_human = 30
+    cv2.putText(image,title,(55,y_start_human),cv2.FONT_HERSHEY_TRIPLEX, 1, (111, 0, 5), 1)
+    x_start_item = x_start_human + 30
+    y_start_human += 30
+    for human_id in payment_storage:
+        cv2.putText(image,f"person {human_id}",(x_start_human,y_start_human),
+                    cv2.FONT_HERSHEY_TRIPLEX, 1, (111, 0, 5), 1)
+        y_start_item = y_start_human + 30
+        for item_obj in payment_storage[human_id]:
+            cls_id = item_obj.cls_id
+            cv2.putText(image,f"+ {classes[cls_id]}",(x_start_item,y_start_item),
+                    cv2.FONT_HERSHEY_TRIPLEX, 1, (111, 0, 5), 1)
+            y_start_item += 30
+
+        y_start_human += y_start_item
 
 
 

@@ -21,6 +21,9 @@ class Box:
     
     def center_point(self):
         return (self.top_left.x + self.bot_right.x)/2, (self.top_left.y + self.bot_right.y)/2
+    
+    def center_bot(self):
+        return (self.top_left.x + self.bot_right.x)/2, self.bot_right.y
 
 class Object:
     

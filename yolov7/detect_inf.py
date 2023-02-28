@@ -11,13 +11,7 @@ import os
 from yolov7.utils.general import non_max_suppression, scale_coords
 from yolov7.utils.torch_utils import time_synchronized
 import sys
-
-# FILE = Path(_file_).resolve()
-# ROOT = FILE.parents[0]  # YOLOv5 root directory
-# if str(ROOT) not in sys.path:
-#     sys.path.append(str(ROOT))  # add ROOT to PATH
-# ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative     
-                                                                               
+                                                                      
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleup=True, stride=32):
 
     shape = im.shape[:2]  # current shape [height, width]
@@ -46,13 +40,15 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleu
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, r, (dw, dh)
 
-def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3, device="cpu"):
-    
-    detector.to(device)
-    
-    # half = False
-    # if str(device) != "cpu":
+
+
+def obj_detector(human_detector, hands_items_detector, 
+                image, classes=None, conf_thresh=0.45, 
+                iou_thresh=0.3, device="cpu"):
+
     half = True
+    if str(device) == "cpu":
+        half = False
 
     img = image.copy()
     
@@ -62,7 +58,62 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
     img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
     img = np.ascontiguousarray(img)
     img = torch.from_numpy(img).to(device)
-    img = img.float()  # uint8 to fp16/32
+    img = img.half() if half else img.float()  # uint8 to fp16/32
+    img /= 255.0  # 0 - 255 to 0.0 - 1.0
+    if img.ndimension() == 3:
+        img = img.unsqueeze(0)
+
+    img_copy = torch.clone(img)
+
+    # Inference
+    with torch.no_grad():
+        human_pred = human_detector(img, augment=False)[0]  # list: bz * [ (#obj, 6)]
+        hand_item_pred = hands_items_detector(img, augment=False)[0]
+        
+    # Apply NMS
+    human_pred = non_max_suppression(human_pred, conf_thresh, iou_thresh, 0, agnostic=False)
+    hand_item_pred = non_max_suppression(hand_item_pred, conf_thresh, iou_thresh, classes, agnostic=False)
+    
+    # Get final results
+    hand_item_results_det = hand_item_pred[0]
+    human_results_det = human_pred[0]
+
+    if len(human_results_det) >= 1:
+        human_results_det[:, :4] = scale_coords(img.shape[2:], human_results_det[:, :4], image.shape).round()
+        human_results_det = human_results_det.detach().cpu().numpy()
+    else:
+        human_results_det = np.zeros([0,5])
+
+    if len(hand_item_results_det) >= 1:
+        hand_item_results_det[:, :4] = scale_coords(img.shape[2:], hand_item_results_det[:, :4], image.shape).round()
+        hand_item_results_det = hand_item_results_det.detach().cpu().numpy() 
+        classes_id = hand_item_results_det[:, 5]
+        hand_results_det = hand_item_results_det[classes_id == 2]
+        item_results_det = hand_item_results_det[classes_id != 2]
+        if len(hand_results_det) < 1:
+            hand_results_det = np.zeros([0,5])
+        if len(item_results_det) < 1:
+            item_results_det = np.zeros([0,5])
+    else:
+        hand_results_det = np.zeros([0,5])
+        item_results_det = np.zeros([0,5])
+    return human_results_det, hand_results_det, item_results_det
+
+def obj_detector_image(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3, device="gpu"):
+        
+    half = True
+    if str(device) == "cpu":
+        half = False
+
+    img = image.copy()
+    
+    img = letterbox(img, new_shape=(640, 640))[0]
+    
+    # Convert
+    img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+    img = np.ascontiguousarray(img)
+    img = torch.from_numpy(img).to(device)
+    img = img.half() if half else img.float()  # uint8 to fp16/32
     img /= 255.0  # 0 - 255 to 0.0 - 1.0
     if img.ndimension() == 3:
         img = img.unsqueeze(0)
@@ -84,39 +135,3 @@ def obj_detector(detector, image, classes=None, conf_thresh=0.45, iou_thresh=0.3
         return results_det, fps
     else: 
         return torch.zeros((0, 5)), fps   
-
-# if _name_ == "_main_":
-    
-#     import mediapipe as mp
-#     mp_drawing = mp.solutions.drawing_utils
-#     mp_drawing_styles = mp.solutions.drawing_styles
-#     mp_pose = mp.solutions.pose
-    
-#     model = load_detect_model("/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/yolov7/trained_models/yolov7.pt")
-#     video = cv2.VideoCapture("/home/hoangdinhhuy/hoangdinhhuy/VTI/retail_store/video_duy.mp4")
-#     while True:
-#         t0 = time.time()
-#         ret, frame = video.read()
-
-#         result, fps = obj_detector(model, frame)
-        
-#         MARGIN=10
-#         for (xmin, ymin, xmax,   ymax,  confidence,  clas) in result:
-#             with mp_pose.Pose(min_detection_confidence=0.3, min_tracking_confidence=0.3) as pose:
-#                 results = pose.process(frame[int(ymin)+MARGIN:int(ymax)+MARGIN,int(xmin)+MARGIN:int(xmax)+MARGIN:])
-#                 if results.pose_landmarks:
-#                     mp_drawing.draw_landmarks(frame[int(ymin)+MARGIN:int(ymax)+MARGIN,int(xmin)+MARGIN:int(xmax)+MARGIN:], 
-#                                               results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-#                     for id, lm in enumerate(results.pose_landmarks.landmark):
-#                         h, w,c = frame[int(ymin)+MARGIN:int(ymax)+MARGIN,int(xmin)+MARGIN:int(xmax)+MARGIN:].shape
-#                         print(id, lm)
-#                         cx, cy = int(lm.x*w), int(lm.y*h)
-#                         cv2.circle(frame[int(ymin)+MARGIN:int(ymax)+MARGIN,int(xmin)+MARGIN:int(xmax)+MARGIN:], (cx, cy), 5, (255,0,0), cv2.FILLED)
-
-#         print(1/(time.time() - t0))
-#         cv2.imshow("", frame)
-#         if cv2.waitKey(1) & 0xFF == ord('q'):
-#             break
-        
-#     video.release()
-#     cv2.destroyAllWindows()
