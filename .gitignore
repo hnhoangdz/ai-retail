@@ -4,6 +4,8 @@ video/
 images/
 dataset/
 results/
+videos/
+data_record/
 */trained_models
 */weights
 */run
