@@ -5,6 +5,7 @@ import time
 import cv2
 import torch
 import logging
+import numpy as np
 
 from loguru import logger
 
@@ -247,7 +248,7 @@ def image_demo(predictor, vis_folder, current_time, args):
         logger.info(f"save results to {res_file}")
 
 
-def imageflow_demo(predictor, items_predictor, dataset, dataset_info, vis_folder, current_time, args):
+def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
@@ -272,6 +273,7 @@ def imageflow_demo(predictor, items_predictor, dataset, dataset_info, vis_folder
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
         ret_val, frame = cap.read()
         if ret_val:
+            start_time = time.time()
             outputs, img_info = predictor.inference(frame, timer)
             items_dets, fps_items = items_predictor.detect(frame)
 
@@ -302,13 +304,104 @@ def imageflow_demo(predictor, items_predictor, dataset, dataset_info, vis_folder
                 online_tlwhs = []
                 online_ids = []
                 online_scores = []
+                human_boxes = []
+                humans = []
+                for target in online_targets:
+                    human_boxes.append({
+                        'bbox':np.append(target.tlbr, target.score),
+                        'tlwh':target.tlwh,
+                        'track_id':target.track_id
+                    })
+
+                    # write  swap 2 numbers
+
+                # inference pose in body human
+                pose_results = inference_top_down_pose_model(
+                    pose_model,
+                    frame,
+                    human_boxes,
+                    bbox_thr=PoseConfig.bbox_thres,
+                    format='xyxy',
+                    dataset=dataset,
+                    dataset_info=dataset_info,
+                    return_heatmap=PoseConfig.return_heatmap,
+                    outputs=PoseConfig.ouputs
+                )
+                # import ipdb; ipdb.set_trace()
+                end_time = time.time() 
+                    # print(f"hahahahhahahhah: {len(pose_results[0])} fps: {round(1/(end_time-start_time))}")
+                for each in pose_results[0]:
+                    # import ipdb; ipdb.set_trace()
+                    human = Human(
+                        track_id=each['track_id'],
+                        id_object=None,
+                        name_object="Human"
+                        box=Box(tl=Point(x=each['bbox'][0], y=each['bbox'][1]), y=Point(x=each['bbox'][2], y=each['bbox'][3])),
+                        conf=each['bbox'][4]
+                    )
+                    # append keypoint hand and leg 
+                    for i, kp in enumerate(each['keypoints'].tolist()):
+                        # collect left_hand_keypoints
+                        for id_pose in  PoseConfig.id_pose_lefthand:
+                            # get id pose in each_human fit pose left hand 
+                            if i == id_pose:
+                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                                    conf=kp[2], id_=i, 
+                                                    name=meta_one_point['name'],
+                                                    color=meta_one_point['color'],
+                                                    type_=meta_one_point['type'],
+                                                    swap=meta_one_point['swap'])
+                                human.left_hand_kp.append(each_pose)
+
+                        # collect right_hand_keypoints
+                        for id_pose in  PoseConfig.id_pose_righthand:
+                            # get id pose in each_human fit pose right hand 
+                            if i == id_pose:
+                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                                    conf=kp[2], id_=i, 
+                                                    name=meta_one_point['name'],
+                                                    color=meta_one_point['color'],
+                                                    type_=meta_one_point['type'],
+                                                    swap=meta_one_point['swap'])
+                                human.right_hand_kp.append(each_pose)
+
+                        # collect right_leg_keypoints
+                        for id_pose in  PoseConfig.id_pose_rightleg:
+                            # get id pose in each_human fit pose right leg 
+                            if i == id_pose:
+                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                                    conf=kp[2], id_=i, 
+                                                    name=meta_one_point['name'],
+                                                    color=meta_one_point['color'],
+                                                    type_=meta_one_point['type'],
+                                                    swap=meta_one_point['swap'])
+                                human.right_leg_kp.append(each_pose)
+                        
+                        # collect left_leg_keypoints
+                        for id_pose in  PoseConfig.id_pose_leftleg:
+                            # get id pose in each_human fit pose left leg 
+                            if i == id_pose:
+                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                                    conf=kp[2], id_=i, 
+                                                    name=meta_one_point['name'],
+                                                    color=meta_one_point['color'],
+                                                    type_=meta_one_point['type'],
+                                                    swap=meta_one_point['swap'])
+                                human.left_leg_kp.append(each_pose)
+                    
+                    
+     
+
 
                 # Lay trong target de hoat implement hanh vi
-
                 # print(f"ONLINE_TLWHS: {online_tlwhs}")
                 # print(f"ONLINE_IDS: {online_ids}")
                 # print(f"ONLINE_SCORES: {online_scores}")
-                print(f"ONLINE_TARGETS: {online_targets}")
+                # print(f"ONLINE_TARGETS: {online_targets}")
 
                 for t in online_targets:
                     tlwh = t.tlwh
@@ -330,8 +423,6 @@ def imageflow_demo(predictor, items_predictor, dataset, dataset_info, vis_folder
                 online_im = img_info['raw_img']
             # cv2.imshow("", online_im)
             # cv2.waitKey(0)
-        
-            # import ipdb; ipdb.set_trace()
             if args.save_result:
                 vid_writer.write(online_im)
             ch = cv2.waitKey(1)
@@ -430,7 +521,7 @@ def main(exp, args):
     # if args.demo == "image":
     #     image_demo(predictor, vis_folder, current_time, args)
     # elif args.demo == "video" or args.demo == "webcam":
-    imageflow_demo(predictor, items_predictor, dataset, dataset_info, vis_folder, current_time, args)
+    imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info, vis_folder, current_time, args)
 
 
 if __name__ == "__main__":

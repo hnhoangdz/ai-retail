@@ -41,7 +41,7 @@ class PoseConfig:
     bbox_thres = 0.8
     formats = 'xyxy',
     return_heatmap = False
-    outputs = None
+    ouputs = None
     use_oks = True
     tracking_thr = 0.8
     id_pose_lefthand = [i for i in range(91, 112, 1)] + [9]

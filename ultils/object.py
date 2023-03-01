@@ -147,7 +147,7 @@ class Human(Object):
     def __init__(self, track_id, id_object, name_object, box: Box, conf) -> None:
         super().__init__(id, id_object, name_object, box, conf)
         self.track_id = track_id
-        self.id_object = CLASSES.person
+        self.id_object = None
         self.left_hand_kp = []
         self.right_hand_kp = []
         self.left_leg_kp = []

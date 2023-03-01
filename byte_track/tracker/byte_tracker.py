@@ -68,7 +68,7 @@ class STrack(BaseTrack):
             self.track_id = self.next_id()
         self.score = new_track.score
 
-    def update(self, new_track, frame_id):
+    def pose_results(self, new_track, frame_id):
         """
         Update a matched track
         :type new_track: STrack
