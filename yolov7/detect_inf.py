@@ -46,9 +46,9 @@ def obj_detector(human_detector, hands_items_detector,
                 image, classes=None, conf_thresh=0.45, 
                 iou_thresh=0.3, device="cpu"):
 
-    half = True
-    if str(device) == "cpu":
-        half = False
+    # half = True
+    # if str(device) == "cpu":
+    #     half = False
 
     img = image.copy()
     
@@ -58,7 +58,7 @@ def obj_detector(human_detector, hands_items_detector,
     img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
     img = np.ascontiguousarray(img)
     img = torch.from_numpy(img).to(device)
-    img = img.half() if half else img.float()  # uint8 to fp16/32
+    img =img.float()  # uint8 to fp16/32
     img /= 255.0  # 0 - 255 to 0.0 - 1.0
     if img.ndimension() == 3:
         img = img.unsqueeze(0)

@@ -101,6 +101,7 @@ class VideoRetailStore(object):
         consecutive_frame_items = []
         attend_storage = {}
         payment_storage = {}
+        trace_area = {}
         payment_frame = np.zeros([1080, 1920//4, 3], dtype=np.uint8)
         payment_frame[:, :] = [255, 255, 255]
 
@@ -110,6 +111,7 @@ class VideoRetailStore(object):
      
             print("ith ", ith)
             frame = cv2.resize(frame, (1920, 1080))
+
             # Init frame object
             frame_process = Frame(ith, frame, self.human_detector, self.hands_items_detector,
                                     self.tracker, display_area=True)
@@ -138,23 +140,40 @@ class VideoRetailStore(object):
                 # Get behavior of human
                 if ith >= 10:
                     behavior = ByteTrackBehavior(consecutive_frame_humans, consecutive_frame_items)
-                    # print("last_human_ids ", last_human_ids)
                     current_state = behavior.get_item()
-                    # print(" current_state ", current_state)
+
                     # Attend storage
                     for current_state_key, current_state_values in current_state.items():
-                        
                         human_id = current_state_key.id
                         area = current_state_values["area"]
                         items = current_state_values["items"]
                         
+                        if human_id not in trace_area:
+                            trace_area[human_id] = [area]
+                        else:
+                            if area not in trace_area[human_id]:
+                                trace_area[human_id].append(area)
+
                         if (area == "attend"):
                             if (len(items) > 0):
-                                attend_storage[human_id] = items
-                                
-                                            
+                                if trace_area[human_id][len(trace_area[human_id])-1] != "payment":
+                                    if human_id not in attend_storage:
+                                        attend_storage[human_id] = items
+                                    else:
+                                        # if len(attend_storage[human_id]) > 1:
+                                        #     continue
+                                        attend_items = [i.cls_id for i in attend_storage[human_id]]
+                                        for item_obj in items:
+                                            if item_obj.cls_id not in attend_items:
+                                                if len(attend_storage[human_id]) == 2:
+                                                    break
+                                                attend_storage[human_id].append(item_obj)
+                    print("before attend_storage ", attend_storage)
                     current_state, attend_storage, payment_storage = behavior.bring_item_to_pay(current_state, attend_storage, payment_storage)
+                    print("after attend_storage ", attend_storage)
+                    print("payment_storage ", payment_storage)
                     print("=============================================")
+
                     # Visualization
                     x_text_start = 5
                     y_text_start = 130
@@ -170,6 +189,9 @@ class VideoRetailStore(object):
                         elif area == "attend":
                             color_human = COLOR.magenta
                             color_item = COLOR.magenta
+                        elif area == "payment":
+                            color_human = COLOR.green
+                            color_item = COLOR.green
                         else:
                             continue
                         
@@ -189,10 +211,16 @@ class VideoRetailStore(object):
                             if human_id in attend_storage:
                                 for item in attend_storage[human_id]:
                                     cv2.putText(frame, f"{classes[item.cls_id]}    ", 
-                                                (x_start_item, y_text_start), 
-                                                cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
+                                            (x_start_item, y_text_start), 
+                                            cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
                                     x_start_item += 80
                         elif area == "shelf":
+                            for item in items:
+                                cv2.putText(frame, f"{classes[item.cls_id]}    ", 
+                                            (x_start_item, y_text_start), 
+                                            cv2.FONT_HERSHEY_COMPLEX, 0.7, color_item)
+                                x_start_item += 80
+                        elif area == "payment":
                             for item in items:
                                 cv2.putText(frame, f"{classes[item.cls_id]}    ", 
                                             (x_start_item, y_text_start), 
@@ -239,9 +267,9 @@ def get_parser():
 
     # Detection
     parser.add_argument("--weights_human", type=str,
-                        default="./yolov7/trained_models/yolov7.pt")
+                        default="/home/ubuntu/Desktop/research/yolov7/yolov7.pt")
     parser.add_argument("--weights_hands_items", type=str, 
-                        default="./yolov7/trained_models/hands_items_yolov7.pt")
+                        default="/home/ubuntu/Downloads/2702_labeled/best.pt")
     parser.add_argument("--conf_thresh", type=float, default=0.45,
                         help="confidence threshold object detection")
     parser.add_argument("--iou_thresh", type=float, default=0.3,
@@ -286,11 +314,11 @@ def get_parser():
 if __name__ == "__main__":
     import threading
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(f"Devide:{device}")
+    print(f"Devide:{torch.cuda.device_count()}")
     args = get_parser().parse_args()
     video = cv2.VideoCapture(args.cam)
     print('Done. Load stream ', str(args.cam))
     threading.Thread(target=read_frame, args=(video,)).start()
-    app.run(host='10.1.18.110', port=5000, threaded=True)
+    app.run(host='10.1.56.142', port=5000, threaded=True)
     
     

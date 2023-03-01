@@ -155,6 +155,7 @@ class VideoRetailStore(object):
                     print("after attend_storage ", attend_storage)
                     print("payment_storage ", payment_storage)
                     print("=============================================")
+                    
                     # Visualization
                     x_text_start = 5
                     y_text_start = 130
@@ -241,9 +242,9 @@ def get_parser():
 
     # Detection
     parser.add_argument("--weights_human", type=str,
-                        default="./yolov7/trained_models/yolov7.pt")
+                        default="/home/ubuntu/Desktop/research/yolov7/yolov7.pt")
     parser.add_argument("--weights_hands_items", type=str, 
-                        default="./yolov7/trained_models/best.pt")
+                        default="/home/ubuntu/Downloads/2702_labeled/best.pt")
     parser.add_argument("--conf_thresh", type=float, default=0.45,
                         help="confidence threshold object detection")
     parser.add_argument("--iou_thresh", type=float, default=0.3,
@@ -253,7 +254,7 @@ def get_parser():
 
     # Input and ouput
     parser.add_argument("--input_path", type=str,
-                        default="./videos/cut_p1.avi", help="input video")
+                        default="/home/ubuntu/vti_prj/ai-retail/data/test_1.mp4", help="input video")
     parser.add_argument("--save_path", type=str,
                         default="./results", help="output folder")
     parser.add_argument("--fourcc", type=str, default="mp4v",
@@ -287,7 +288,7 @@ def get_parser():
 
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(f"Devide:{device}")
+    print(f"Devide:{torch.cuda.device_count()}")
     args = get_parser().parse_args()
     
     with VideoRetailStore(args) as vidRS:

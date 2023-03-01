@@ -50,7 +50,7 @@ def draw_box(image, xf1, yf1, w_box, h_box):
 def load_model(weight_path, device):
     model = torch.load(weight_path, map_location=device)['model'].float().fuse().eval()
     if torch.cuda.is_available():
-        model.half().to(device)
+        model.to(device)
     return model
 
 def search_area(w, h, midx, midy):
