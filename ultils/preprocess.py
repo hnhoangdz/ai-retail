@@ -8,12 +8,11 @@ import logging
 import torch
 import numpy as np
 import time
-from ultils.object import Image
 
 from detection.yolov7.utils.general import non_max_suppression, scale_coords
 from detection.yolov7.utils.datasets import letterbox
 
-from ultils.object import Human, Hand, Item, Box, Point, Image
+from ultils.object import Human, Hand, Item, Box, Point, Frame
 from ultils.logger import set_logger
 from config.config_common import CLASSES, objects
 from ultralytics import YOLO
@@ -43,7 +42,7 @@ class Detector:
         '''
         return inputs
     
-    def preprocess_output(self, det, img_original:Image) -> List:
+    def preprocess_output(self, det, img_original:Frame) -> List:
         '''
         pre-process rule, convert output to standart output
         Args:
@@ -168,7 +167,7 @@ class Yolov8Detector(Detector):
     def __init__(self, model, device) -> None:
         super().__init__(model, device)
     
-    def preprocess_output(self, det, img_original: Image) -> List:
+    def preprocess_output(self, det, img_original: Frame) -> List:
         result = []
         for each in det:
             try: 
@@ -200,8 +199,6 @@ class Yolov8Detector(Detector):
         fps = round(1/(end_time-start_time), 3)
         dets = self.preprocess_output(dets, img)
         return dets, fps
-        
-
 
 
 if __name__ == "__main__":
@@ -213,7 +210,7 @@ if __name__ == "__main__":
 
     
     # image = cv2.imread('/home/ubuntu/Pictures/download.jpeg')
-    image = Image(id=0, img='/home/ubuntu/vti_prj/ai-retail/data/sample.png', ratio=1)
+    image = Frame(id=0, img='/home/ubuntu/vti_prj/ai-retail/data/sample.png', ratio=1)
     image_core = image.img
     result_dets = model_detect.detect(image_core)
     print(result_dets)

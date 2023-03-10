@@ -2,6 +2,9 @@ from typing import List, Dict, Tuple
 from config.config_common import COLOR, objects, CLASSES
 import cv2
 import numpy as np
+from numpy import ones,vstack
+from numpy.linalg import lstsq
+import math
 import os
 from keypoint import keypoint_definition
 
@@ -12,8 +15,18 @@ class Point:
     
     def inside(self, polygon) -> bool:
         '''Validate point inside a polygon area'''
-        return cv2.pointPolygonTest(contour=polygon.points, pt=(self.x, self.y), measureDist=True)
-
+        # import ipdb; ipdb.set_trace()
+        coutour = np.array(polygon.points).reshape(4, 1, 2)
+        score = cv2.pointPolygonTest(contour=coutour, pt=(self.x, self.y), measureDist=True)
+        return True if score > 0 else False
+    
+    def over_line_has_2_point(self, point1:Tuple, point2:Tuple):
+        points = [point1, point2]
+        x_coords, y_coords = zip(*points)
+        A = vstack([x_coords,ones(len(x_coords))]).T
+        m, c = lstsq(A, y_coords)[0]
+        x_at_line = (self.y - c)//m
+        return True if self.x < x_at_line else False
 
 class Box:
     def __init__(self, tl:Point, br:Point) -> None:
@@ -113,6 +126,7 @@ class Object:
     
 
     def visual(self, image:np.array, color=COLOR.blue, thickness=2, label:str=''):
+        # print(f"img_type: {type(image)}     color: {color}     tl_x: {self.box.tl.x}     tl_y: {self.box.tl.y}     br_x: {self.box.br.x}      br_y: {self.box.br.y}")
         cv2.rectangle(image,
                     (self.box.tl.x, self.box.tl.y),
                     (self.box.br.x, self.box.br.y),
@@ -120,7 +134,7 @@ class Object:
                     thickness=thickness
                     )
         cv2.putText(image, label,
-                (self.box.tl.x, self.box.br.y-15),
+                (self.box.tl.x, self.box.tl.y-15),
                 fontScale = 0.8,
                 color=color,
                 thickness=thickness,
@@ -131,6 +145,9 @@ class Object:
 class Item(Object):
     def __init__(self, id, id_object, name_object, box: Box, conf) -> None:
         super().__init__(id, id_object, name_object, box, conf)
+
+    def __eq__(self, __o: object) -> bool:
+        return self.id_object == __o.id_object
 
 
 class Hand(Object):
@@ -152,7 +169,26 @@ class Human(Object):
         self.right_hand_kp = []
         self.left_leg_kp = []
         self.right_leg_kp = []
+        self.item_holding = []
         self.area = None
+        self.hold_item_flag = True if len(self.item_holding)>0 else False 
+        self.flag_in_selection_area = False
+        self.flag_hand_over_line = False
+        self.cnt_hand_touch_item = 0
+        self.payment_flag = False
+        self.cnt_in_area_pay = 0
+        self.was_paid = False
+    
+    def __eq__(self, __o: object) -> bool:
+        return self.track_id == __o.track_id
+    
+    def stand_in(self, area:Polygon) -> bool:
+        '''
+        human stand in area and not?
+        '''
+        cen_point_2_leg = Point(x=(self.left_leg_kp[0].x+self.right_leg_kp[0].x)//2, y=(self.left_leg_kp[0].y+self.right_leg_kp[0].y)//2)
+        return cen_point_2_leg.inside(area) 
+
     
     def hold(self, item:Item, thres:float) -> List[Item]:
         item_held = []
@@ -210,7 +246,7 @@ class Human(Object):
         
 
 
-class Image:
+class Frame:
     def __init__(self, id, img, ratio) -> None:
         if isinstance(img, str):
             self.path = img
@@ -226,6 +262,9 @@ class Image:
         self.height = self.shape[0]
         self.channel = self.shape[2] if len(self.shape) > 2 else None
         self.ratio = ratio
+        self.humans = []
+        self.items = []
+    
 
     def has_area(self, ratio_points:Tuple) -> Polygon:
         real_point_obj = []
@@ -248,8 +287,6 @@ class KeyPoint(Point):
 
     def in_box(self, box:Box) -> bool:
         return self.x > box.tl.x and self.y > box.tl.y and self.x < box.br.x and box.br.y
-
-
 
 
         
