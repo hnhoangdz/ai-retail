@@ -15,20 +15,18 @@ from yolox.utils import fuse_model, get_model_info, postprocess
 from yolox.utils.visualize import plot_tracking
 from yolox.tracker.byte_tracker import BYTETracker
 from yolox.tracking_utils.timer import Timer
-from ultils.preprocess import Yolov8Detector, Yolov7Detector, load_model
 from config.config_detection import Yolov8Config, PoseConfig, Yolov7Config
-from ultralytics import YOLO
-from config.config_common import objects, AREA
-from ultils.object import Item, Human, Box, Polygon, KeyPoint, Point, Image
-from tracking.mmpose.mmpose.apis import (collect_multi_frames, get_track_id,
-                         inference_top_down_pose_model, init_pose_model,
-                         process_mmdet_results, vis_pose_tracking_result)
+from config.config_common import objects, AREA, INDEX_FRAME_IGNORE, NUM_FRAME_SET, Visualization
+from tracking.mmpose.mmpose.apis import (inference_top_down_pose_model, init_pose_model)
 from mmpose.datasets import DatasetInfo
 from ultils.logger import set_logger
-level = logging.DEBUG
+from ultils.behavior import PoseBehavior
+from ultils.common import convert2Real, visual_area, get_monitor_size
+from ultils.object import Item, Human, Box, Polygon, KeyPoint, Point, Frame
+from ultils.preprocess import Yolov8Detector, Yolov7Detector, load_model
+
+level = logging.WARNING
 logger = set_logger(level=level)
-
-
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
@@ -50,6 +48,11 @@ def make_parser():
         "--save_result",
         action="store_true",
         help="whether to save the inference result of image/video",
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="show video",
     )
 
     # exp file
@@ -103,6 +106,29 @@ def make_parser():
     parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
     parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="test mot20.")
     return parser
+# write function show video cv2 python
+
+    # Open the video file or camera
+    cap = cv2.VideoCapture(video_path)
+
+    while cap.isOpened():
+        # Read a frame from the video
+        ret, frame = cap.read()
+
+        # If the frame was read successfully
+        if ret:
+            # Display the frame
+            cv2.imshow('Video', frame)
+
+            # Wait for 25ms and check if the user pressed the 'q' key
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+        else:
+            break
+
+    # Release the video capture object and close all windows
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 def get_image_list(path):
@@ -190,64 +216,6 @@ class Predictor(object):
         return outputs, img_info
 
 
-def image_demo(predictor, vis_folder, current_time, args):
-    if osp.isdir(args.path):
-        files = get_image_list(args.path)
-    else:
-        files = [args.path]
-    files.sort()
-    tracker = BYTETracker(args, frame_rate=args.fps)
-    timer = Timer()
-    results = []
-
-    for frame_id, img_path in enumerate(files, 1):
-        outputs, img_info = predictor.inference(img_path, timer)
-        if outputs[0] is not None:
-            online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
-            online_tlwhs = []
-            online_ids = []
-            online_scores = []
-            for t in online_targets:
-                tlwh = t.tlwh
-                tid = t.track_id
-                vertical = tlwh[2] / tlwh[3] > args.aspect_ratio_thresh
-                if tlwh[2] * tlwh[3] > args.min_box_area and not vertical:
-                    online_tlwhs.append(tlwh)
-                    online_ids.append(tid)
-                    online_scores.append(t.score)
-                    # save results
-                    results.append(
-                        f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
-                    )
-            timer.toc()
-            online_im = plot_tracking(
-                img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id, fps=1. / timer.average_time
-            )
-        else:
-            timer.toc()
-            online_im = img_info['raw_img']
-
-        # result_image = predictor.visual(outputs[0], img_info, predictor.confthre)
-        if args.save_result:
-            timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
-            save_folder = osp.join(vis_folder, timestamp)
-            os.makedirs(save_folder, exist_ok=True)
-            cv2.imwrite(osp.join(save_folder, osp.basename(img_path)), online_im)
-
-        if frame_id % 20 == 0:
-            logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
-
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
-
-    if args.save_result:
-        res_file = osp.join(vis_folder, f"{timestamp}.txt")
-        with open(res_file, 'w') as f:
-            f.writelines(results)
-        logger.info(f"save results to {res_file}")
-
-
 def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
@@ -267,45 +235,24 @@ def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info
     tracker = BYTETracker(args, frame_rate=30)
     timer = Timer()
     frame_id = 0
+    result_in_num_frame_set = []
     results = []
+    behavior = PoseBehavior()
     while True:
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
         ret_val, frame = cap.read()
+        frame = Frame(id=frame_id, img=frame, ratio=1)
         if ret_val:
-            start_time = time.time()
-            outputs, img_info = predictor.inference(frame, timer)
-            items_dets, fps_items = items_predictor.detect(frame)
+            outputs, img_info = predictor.inference(frame.img, timer)
+            items_dets, fps_items = items_predictor.detect(frame.img)
 
 
-            # print(items_dets)
-            # item_objs = []
-            # try:
-            #     for item in items_dets:
-            #         bbox = item['xyxy']
-            #         bbox = Box(Point(x=bbox[0], y=bbox[1]), Point(x=bbox[2], y=bbox[3]))
-            #         item_objs.append(
-            #             Item(
-            #             id=None,
-            #             id_object=item['cls'],
-            #             name_object = objects[int(item['cls'])],
-            #             box=bbox,
-            #             conf=item['conf']
-            #             )
-            #         )
-
-            # except:
-            #     # import ipdb; ipdb.set_trace()
-            #     logger.debug("nothing deteted in detetections")
+            # PROCESS PERSON
             if outputs[0] is not None:
                 # import ipdb; ipdb.set_trace()
-
                 online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
-                online_tlwhs = []
-                online_ids = []
-                online_scores = []
                 human_boxes = []
-                humans = []
                 for target in online_targets:
                     human_boxes.append({
                         'bbox':np.append(target.tlbr, target.score),
@@ -313,12 +260,10 @@ def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info
                         'track_id':target.track_id
                     })
 
-                    # write  swap 2 numbers
-
                 # inference pose in body human
                 pose_results = inference_top_down_pose_model(
                     pose_model,
-                    frame,
+                    frame.img,
                     human_boxes,
                     bbox_thr=PoseConfig.bbox_thres,
                     format='xyxy',
@@ -327,82 +272,62 @@ def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info
                     return_heatmap=PoseConfig.return_heatmap,
                     outputs=PoseConfig.ouputs
                 )
-                # import ipdb; ipdb.set_trace()
-                end_time = time.time() 
-                    # print(f"hahahahhahahhah: {len(pose_results[0])} fps: {round(1/(end_time-start_time))}")
+                human_boxes.clear()
                 for each in pose_results[0]:
-                    # import ipdb; ipdb.set_trace()
                     human = Human(
                         track_id=each['track_id'],
                         id_object=None,
-                        name_object="Human"
-                        box=Box(tl=Point(x=each['bbox'][0], y=each['bbox'][1]), y=Point(x=each['bbox'][2], y=each['bbox'][3])),
+                        name_object="Person",
+                        box=Box(tl=Point(x=each['bbox'][0], y=each['bbox'][1]), br=Point(x=each['bbox'][2], y=each['bbox'][3])),
                         conf=each['bbox'][4]
                     )
                     # append keypoint hand and leg 
                     for i, kp in enumerate(each['keypoints'].tolist()):
+                        config_kp_part = [
+                            PoseConfig.id_pose_lefthand, PoseConfig.id_pose_righthand, PoseConfig.id_pose_rightleg, PoseConfig.id_pose_leftleg
+                        ]
+
+                        body_part = [human.left_hand_kp, human.right_hand_kp, human.right_leg_kp, human.left_leg_kp]
+
                         # collect left_hand_keypoints
-                        for id_pose in  PoseConfig.id_pose_lefthand:
-                            # get id pose in each_human fit pose left hand 
-                            if i == id_pose:
-                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
-                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
-                                                    conf=kp[2], id_=i, 
-                                                    name=meta_one_point['name'],
-                                                    color=meta_one_point['color'],
-                                                    type_=meta_one_point['type'],
-                                                    swap=meta_one_point['swap'])
-                                human.left_hand_kp.append(each_pose)
+                        for config_kp, kp_body in zip(config_kp_part, body_part): 
+                            for id_pose in  config_kp:
+                                # get id pose in each_human fit pose left hand 
+                                if i == id_pose:
+                                    meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
+                                    each_pose = KeyPoint(x=kp[0], y=kp[1], 
+                                                        conf=kp[2], id_=i, 
+                                                        name=meta_one_point['name'],
+                                                        color=meta_one_point['color'],
+                                                        type_=meta_one_point['type'],
+                                                        swap=meta_one_point['swap'])
+                                    kp_body.append(each_pose)
+                    frame.humans.append(human)  
+                # add result of nums frames continuous
 
-                        # collect right_hand_keypoints
-                        for id_pose in  PoseConfig.id_pose_righthand:
-                            # get id pose in each_human fit pose right hand 
-                            if i == id_pose:
-                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
-                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
-                                                    conf=kp[2], id_=i, 
-                                                    name=meta_one_point['name'],
-                                                    color=meta_one_point['color'],
-                                                    type_=meta_one_point['type'],
-                                                    swap=meta_one_point['swap'])
-                                human.right_hand_kp.append(each_pose)
+                frame.items = [each for each in items_dets]
+                result_in_num_frame_set.append(frame)
+                if len(result_in_num_frame_set) > NUM_FRAME_SET:
+                    result_in_num_frame_set = result_in_num_frame_set[-1*NUM_FRAME_SET:]
+                # VISUALIZE AREA
+                if Visualization.allow_visual_area:
+                    visual_area(image=frame)
 
-                        # collect right_leg_keypoints
-                        for id_pose in  PoseConfig.id_pose_rightleg:
-                            # get id pose in each_human fit pose right leg 
-                            if i == id_pose:
-                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
-                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
-                                                    conf=kp[2], id_=i, 
-                                                    name=meta_one_point['name'],
-                                                    color=meta_one_point['color'],
-                                                    type_=meta_one_point['type'],
-                                                    swap=meta_one_point['swap'])
-                                human.right_leg_kp.append(each_pose)
-                        
-                        # collect left_leg_keypoints
-                        for id_pose in  PoseConfig.id_pose_leftleg:
-                            # get id pose in each_human fit pose left leg 
-                            if i == id_pose:
-                                meta_one_point = PoseConfig.keypoint_definition[str(id_pose)]
-                                each_pose = KeyPoint(x=kp[0], y=kp[1], 
-                                                    conf=kp[2], id_=i, 
-                                                    name=meta_one_point['name'],
-                                                    color=meta_one_point['color'],
-                                                    type_=meta_one_point['type'],
-                                                    swap=meta_one_point['swap'])
-                                human.left_leg_kp.append(each_pose)
-                    
-                    
-     
+                if frame_id > INDEX_FRAME_IGNORE:
+                    behavior.get_item(rs_num_frame_consecutive=result_in_num_frame_set)
+                    behavior.to_pay(rs_num_frame_consecutive=result_in_num_frame_set, all_human_in_retail=behavior.result)
 
-
-                # Lay trong target de hoat implement hanh vi
-                # print(f"ONLINE_TLWHS: {online_tlwhs}")
-                # print(f"ONLINE_IDS: {online_ids}")
-                # print(f"ONLINE_SCORES: {online_scores}")
-                # print(f"ONLINE_TARGETS: {online_targets}")
-
+                    # VISUALIZE HUMAN, ITEM
+                    for human in behavior.result:
+                        if Visualization.visual_box_human:
+                            human.visual(image=frame.img, label=f"id: {human.track_id}")
+                        if Visualization.visual_box_item:
+                            for item in human.item_holding:
+                                item.visual(image=frame.img, label=item.name_object)
+              
+                online_tlwhs = []
+                online_ids = []
+                online_scores = []
                 for t in online_targets:
                     tlwh = t.tlwh
                     tid = t.track_id
@@ -411,27 +336,31 @@ def imageflow_demo(predictor, items_predictor, pose_model, dataset, dataset_info
                         online_tlwhs.append(tlwh)
                         online_ids.append(tid)
                         online_scores.append(t.score)
-                        results.append(
-                            f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
-                        )
+                        results.append(f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n")
                 timer.toc()
-                online_im = plot_tracking(
-                    img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id + 1, fps=1. / timer.average_time
-                )
+                online_im = plot_tracking(img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id + 1, fps=1. / timer.average_time)
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
             # cv2.imshow("", online_im)
             # cv2.waitKey(0)
-            if args.save_result:
-                vid_writer.write(online_im)
+            
+            mo_wid, mo_hei = get_monitor_size()[:2]
+            online_im = cv2.resize(online_im, (mo_wid//4, mo_hei//2), interpolation = cv2.INTER_AREA)
+            # import ipdb; ipdb.set_trace()
+            if args.show:
+                cv2.imshow('Video', online_im)
+                # if cv2.waitKey(25) & 0xFF == ord('q'):
+                #     break
+                
+            # if args.save_result:
+            #     vid_writer.write(online_im)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
         else:
             break
         frame_id += 1
-
     if args.save_result:
         res_file = osp.join(vis_folder, f"{timestamp}.txt")
         with open(res_file, 'w') as f:
@@ -527,11 +456,4 @@ def main(exp, args):
 if __name__ == "__main__":
     args = make_parser().parse_args()
     exp = get_exp(args.exp_file, args.name)
-
     main(exp, args)
-
-
-# TODO: 
-# 1. truyen lai pose model
-# 2. init cac adapter dau vao moi model.
-# 3. Viet rule
